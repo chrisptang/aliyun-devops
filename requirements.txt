@@ -1,0 +1,4 @@
+alibabacloud_sls20201230
+pymysql
+nbconvert
+pandas
