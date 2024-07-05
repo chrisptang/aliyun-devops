@@ -1,4 +1,4 @@
-FROM python:3.9-slim as custom-python-base
+FROM xianmu-registry-registry.cn-hangzhou.cr.aliyuncs.com/base/pyodps-pandas:3.8-slim as custom-python-base
 
 ADD requirements.txt ./requirements.txt
 
