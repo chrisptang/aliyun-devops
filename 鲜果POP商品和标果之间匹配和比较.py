@@ -184,87 +184,87 @@ sku_list_df.head(2)
 # In[ ]:
 
 
-from odps_client import get_odps_sql_result_as_df
+# from odps_client import get_odps_sql_result_as_df
 
-all_fruit_category=['千禧樱桃小番茄','红富士苹果','水蜜桃','25号小蜜','冬枣','更多桃','麒麟西瓜','更多梨','更多苹果','更多李']
-all_fruit_category.extend(['柠檬','果篮','国产油桃','山竹','巨峰葡萄','阳光玫瑰','进口橙','凯特芒','国产红心火龙果','更多凤梨','更多提子'])
-all_fruit_category.extend(['进口红心火龙果','更多蜜瓜','蜂糖李','青脆李','更多柚子','水仙芒','玉菇甜瓜','百香果','更多榴莲','木瓜/杨桃','椰青'])
-all_fruit_category.extend(['金枕榴莲','人参果/释迦果','更多龙眼','黄桃','红肉菠萝蜜','三红蜜柚','台芒','吊干杏','无籽红提','更多葡萄','网纹蜜瓜','蜜桔'])
-all_fruit_category.extend(['赣南脐橙','黑布林','夏黑葡萄','普通红提','更多柑','蓝莓','西州蜜瓜','更多芒果','水果黄瓜','火腿肠','牛油果','硒砂瓜'])
-all_fruit_category.extend(['莲雾/芭乐','其他桔','圆红/血橙','更多橙','白心火龙果','皇冠梨','红布林','进口车厘子','更多荔枝','更多莓','桂味','特小凤','蛇果'])
-all_fruit_category.extend(['贡梨','贵妃芒','更多西瓜','白心蜜柚','秋月梨','绿心猕猴桃','羊角蜜','雪莲果/马蹄果','黄元帅苹果','冷冻畜禽食品','更多枣','水产品'])
-all_fruit_category.extend(['火参果','红心蜜柚','红毛丹','脆柿','软籽石榴','青芒','鲜山楂','鹰嘴芒'])
+# all_fruit_category=['千禧樱桃小番茄','红富士苹果','水蜜桃','25号小蜜','冬枣','更多桃','麒麟西瓜','更多梨','更多苹果','更多李']
+# all_fruit_category.extend(['柠檬','果篮','国产油桃','山竹','巨峰葡萄','阳光玫瑰','进口橙','凯特芒','国产红心火龙果','更多凤梨','更多提子'])
+# all_fruit_category.extend(['进口红心火龙果','更多蜜瓜','蜂糖李','青脆李','更多柚子','水仙芒','玉菇甜瓜','百香果','更多榴莲','木瓜/杨桃','椰青'])
+# all_fruit_category.extend(['金枕榴莲','人参果/释迦果','更多龙眼','黄桃','红肉菠萝蜜','三红蜜柚','台芒','吊干杏','无籽红提','更多葡萄','网纹蜜瓜','蜜桔'])
+# all_fruit_category.extend(['赣南脐橙','黑布林','夏黑葡萄','普通红提','更多柑','蓝莓','西州蜜瓜','更多芒果','水果黄瓜','火腿肠','牛油果','硒砂瓜'])
+# all_fruit_category.extend(['莲雾/芭乐','其他桔','圆红/血橙','更多橙','白心火龙果','皇冠梨','红布林','进口车厘子','更多荔枝','更多莓','桂味','特小凤','蛇果'])
+# all_fruit_category.extend(['贡梨','贵妃芒','更多西瓜','白心蜜柚','秋月梨','绿心猕猴桃','羊角蜜','雪莲果/马蹄果','黄元帅苹果','冷冻畜禽食品','更多枣','水产品'])
+# all_fruit_category.extend(['火参果','红心蜜柚','红毛丹','脆柿','软籽石榴','青芒','鲜山楂','鹰嘴芒'])
 
-biaoguo_df=get_odps_sql_result_as_df(f"""
-SELECT  categoryname,backcategoryname,id,competitor,skucode,spider_fetch_time,goodspropdetaillist,createtime,goodssiphoncommissionrate
-        ,standardprice,finalstandardprice,lasttimestandardprice,finalunitpricecatty,monthsale,attachurlr AS url,sellersiphoncommissionrate
-        ,unitpricecatty,unit,sellername,grossweight,netweight,specification,babyname,goodsname,goodstype,sevendayaftersale
-FROM    (
-            SELECT  *
-                    ,RANK() OVER (PARTITION BY id,skucode ORDER BY spider_fetch_time DESC ) AS rnk
-            FROM    summerfarm_ds.spider_biaoguo_with_prop_product_result_df
-            WHERE   ds = MAX_PT('summerfarm_ds.spider_biaoguo_with_prop_product_result_df')
-            AND     competitor = '标果-杭州' 
-                                     AND categoryname like '%/%'
-            -- AND     split_part(categoryname,'/',2) in ('{"','".join(all_fruit_category)}')
-        ) 
-WHERE   rnk = 1
-LIMIT   100000;
-""")
+# biaoguo_df=get_odps_sql_result_as_df(f"""
+# SELECT  categoryname,backcategoryname,id,competitor,skucode,spider_fetch_time,goodspropdetaillist,createtime,goodssiphoncommissionrate
+#         ,standardprice,finalstandardprice,lasttimestandardprice,finalunitpricecatty,monthsale,attachurlr AS url,sellersiphoncommissionrate
+#         ,unitpricecatty,unit,sellername,grossweight,netweight,specification,babyname,goodsname,goodstype,sevendayaftersale
+# FROM    (
+#             SELECT  *
+#                     ,RANK() OVER (PARTITION BY id,skucode ORDER BY spider_fetch_time DESC ) AS rnk
+#             FROM    summerfarm_ds.spider_biaoguo_with_prop_product_result_df
+#             WHERE   ds = MAX_PT('summerfarm_ds.spider_biaoguo_with_prop_product_result_df')
+#             AND     competitor = '标果-杭州' 
+#                                      AND categoryname like '%/%'
+#             -- AND     split_part(categoryname,'/',2) in ('{"','".join(all_fruit_category)}')
+#         ) 
+# WHERE   rnk = 1
+# LIMIT   100000;
+# """)
 
-print(f"标果的商品数:{len(biaoguo_df)}")
-biaoguo_df.head(1)
+# print(f"标果的商品数:{len(biaoguo_df)}")
+# biaoguo_df.head(1)
 
 
 # In[ ]:
 
 
-print(f"标果的所有类目: \n{biaoguo_df['categoryname'].unique()}")
+# print(f"标果的所有类目: \n{biaoguo_df['categoryname'].unique()}")
 
-category_list_that_xianmu_wont_sale = set(
-    [
-        "即食食品/方便罐头",
-        "即食食品/海苔食品",
-        "饼干糕点/饼干",
-        "方便食品/方便速食" "糖果/巧克力/果冻布丁/果冻/布丁",
-        "刀具工具/刀具工具",
-        "包装配饰/包装配饰",
-        "水果盒/带盖盒",
-        "陈列道具/陈列道具" "水果盒/托盒",
-        "保鲜膜/保鲜膜",
-        "标签贴纸/标签贴纸",
-        "糖果/巧克力/果冻布丁/龟苓膏/果膏" "即食食品/肉干肉铺",
-        "坚果炒货/坚果",
-        "其他标品/营养保健",
-        "糖果/巧克力/果冻布丁/其他糖果",
-        "饼干糕点/散装食品" "酒水/饮料/冲调",
-        "即食食品/其他即食",
-        "酒水/饮料/酒类",
-        "饼干糕点/糕点",
-        "标果奶品/标果奶品" "即食食品/蔬菜干/豆干",
-        "糖果蜜饯/果干蜜饯",
-        "即食食品/火腿肠",
-        "水果袋/水果袋" "氛围牌/氛围牌",
-        "设计定制/设计定制",
-        "水果盒/瓶罐",
-        "粽子/米类/面类/粽子/米类/面类",
-        "洗护用品/洗护用品",
-        "鲜花/鲜花",
-        "水产/水产品",
-        "即食食品/卤味即食",
-    ]
-)
+# category_list_that_xianmu_wont_sale = set(
+#     [
+#         "即食食品/方便罐头",
+#         "即食食品/海苔食品",
+#         "饼干糕点/饼干",
+#         "方便食品/方便速食" "糖果/巧克力/果冻布丁/果冻/布丁",
+#         "刀具工具/刀具工具",
+#         "包装配饰/包装配饰",
+#         "水果盒/带盖盒",
+#         "陈列道具/陈列道具" "水果盒/托盒",
+#         "保鲜膜/保鲜膜",
+#         "标签贴纸/标签贴纸",
+#         "糖果/巧克力/果冻布丁/龟苓膏/果膏" "即食食品/肉干肉铺",
+#         "坚果炒货/坚果",
+#         "其他标品/营养保健",
+#         "糖果/巧克力/果冻布丁/其他糖果",
+#         "饼干糕点/散装食品" "酒水/饮料/冲调",
+#         "即食食品/其他即食",
+#         "酒水/饮料/酒类",
+#         "饼干糕点/糕点",
+#         "标果奶品/标果奶品" "即食食品/蔬菜干/豆干",
+#         "糖果蜜饯/果干蜜饯",
+#         "即食食品/火腿肠",
+#         "水果袋/水果袋" "氛围牌/氛围牌",
+#         "设计定制/设计定制",
+#         "水果盒/瓶罐",
+#         "粽子/米类/面类/粽子/米类/面类",
+#         "洗护用品/洗护用品",
+#         "鲜花/鲜花",
+#         "水产/水产品",
+#         "即食食品/卤味即食",
+#     ]
+# )
 
-print(f"这些类目被过滤掉了:{category_list_that_xianmu_wont_sale}")
+# print(f"这些类目被过滤掉了:{category_list_that_xianmu_wont_sale}")
 
-# Fix the filtering by using 'isin' method
+# # Fix the filtering by using 'isin' method
 
-biaoguo_df = biaoguo_df[
-    ~biaoguo_df["categoryname"].isin(category_list_that_xianmu_wont_sale)
-].copy()
+# biaoguo_df = biaoguo_df[
+#     ~biaoguo_df["categoryname"].isin(category_list_that_xianmu_wont_sale)
+# ].copy()
 
-# Get the length of the filtered DataFrame
-print(f"过滤后的标果商品个数:{len(biaoguo_df)}")
+# # Get the length of the filtered DataFrame
+# print(f"过滤后的标果商品个数:{len(biaoguo_df)}")
 
 
 # ## Azure客户端定义
@@ -352,14 +352,14 @@ def get_xianmu_embedding(row: pd.Series):
     sku_name = row["sku_name"]
     if sku_name is None or len(f"{sku_name}") <= 2:
         sku_name = row["pd_name"]
-    weight = row["weight"]
+    # weight = row["weight"] DO NOT USE
     input_text = f"{sku_name}"
     return get_embedding(input_text=input_text)
 
 
-def get_biaoguo_embedding(row: pd.Series):
-    goodsname = row["goodsname"]
-    specification = row["specification"]
+def get_competitor_like_biaoguo_embedding(row: pd.Series):
+    goodsname = row["goods_name"]
+    # specification = row["specification"] # specification is not used
     return get_embedding(input_text=f"{goodsname}")
 
 
@@ -367,11 +367,11 @@ def get_category_embedding(category: str):
     return get_embedding(input_text=category)
 
 
-biaoguo_df["sku_embeddings"] = biaoguo_df.apply(get_biaoguo_embedding, axis=1)
-sku_list_df["sku_embeddings"] = sku_list_df.apply(get_xianmu_embedding, axis=1)
+# biaoguo_df["sku_embeddings"] = biaoguo_df.apply(get_competitor_like_biaoguo_embedding, axis=1)
+# sku_list_df["sku_embeddings"] = sku_list_df.apply(get_xianmu_embedding, axis=1)
 
-biaoguo_df["category_embeddings"] = biaoguo_df['categoryname'].apply(get_category_embedding)
-sku_list_df["category_embeddings"] = sku_list_df['categoryName'].apply(get_category_embedding)
+# biaoguo_df["category_embeddings"] = biaoguo_df['categoryname'].apply(get_category_embedding)
+# sku_list_df["category_embeddings"] = sku_list_df['categoryName'].apply(get_category_embedding)
 
 
 # In[ ]:
@@ -425,19 +425,6 @@ def find_top_matches_for_xianmu(sku_row: pd.Series):
     sku_row["top_matches"] = top_n_matches
     sku_list_with_matched.append(sku_row)
     return top_n_matches
-
-
-# with ThreadPoolExecutor(max_workers=8) as executor:
-#     futures = [
-#         executor.submit(find_top_matches_for_xianmu, row.to_dict())
-#         for index, row in sku_list_df.iterrows()
-#     ]
-#     concurrent.futures.wait(futures)
-
-## 暂时不要匹配顺路达到标果，而是反过来
-
-# sku_list_df["top_matches"] = sku_list_df.apply(find_top_matches_for_xianmu, axis=1)
-# sku_list_df.head(2)[["top_matches", "sku_name", "weight", "price"]]
 
 
 # ### 写入到HTML文件
@@ -669,20 +656,20 @@ def get_top_matched_biaoguo_sku(xianmu_sku_specification: str, biaoguo_sku_to_ma
 # In[ ]:
 
 
-def get_top_matched_by_llm(xianmu_sku):
-    specification = f"skucode:{xianmu_sku['sku']}, 品名:{xianmu_sku['categoryName']}-{xianmu_sku['sku_name']}"
-    specification = f"{specification}, 规格:{xianmu_sku['weight']}, 毛重:{xianmu_sku.get('weightNum', 0)*2}斤, 净重:{xianmu_sku.get('netWeightNum', 0)*2}斤"
-    top_matches = xianmu_sku["top_matches"]
-    biaoguo_sku_to_match = []
-    for biaoguo_matched in top_matches:
-        sku = f"skucode:{biaoguo_matched['skucode']}, 品名:{biaoguo_matched['categoryname']}-{biaoguo_matched['goodsname']}"
-        sku = f"{sku}, 规格:{biaoguo_matched['specification']}, 毛重:{biaoguo_matched['grossweight']}斤, 净重:{biaoguo_matched['netweight']}斤"
-        print(sku)
-        biaoguo_sku_to_match.append(sku)
-    return get_top_matched_biaoguo_sku(
-        xianmu_sku_specification=specification,
-        biaoguo_sku_to_match=biaoguo_sku_to_match,
-    )
+# def get_top_matched_by_llm(xianmu_sku):
+#     specification = f"skucode:{xianmu_sku['sku']}, 品名:{xianmu_sku['categoryName']}-{xianmu_sku['sku_name']}"
+#     specification = f"{specification}, 规格:{xianmu_sku['weight']}, 毛重:{xianmu_sku.get('weightNum', 0)*2}斤, 净重:{xianmu_sku.get('netWeightNum', 0)*2}斤"
+#     top_matches = xianmu_sku["top_matches"]
+#     biaoguo_sku_to_match = []
+#     for biaoguo_matched in top_matches:
+#         sku = f"skucode:{biaoguo_matched['skucode']}, 品名:{biaoguo_matched['categoryname']}-{biaoguo_matched['goodsname']}"
+#         sku = f"{sku}, 规格:{biaoguo_matched['specification']}, 毛重:{biaoguo_matched['grossweight']}斤, 净重:{biaoguo_matched['netweight']}斤"
+#         print(sku)
+#         biaoguo_sku_to_match.append(sku)
+#     return get_top_matched_biaoguo_sku(
+#         xianmu_sku_specification=specification,
+#         biaoguo_sku_to_match=biaoguo_sku_to_match,
+#     )
 
 # LLM太费事了，先这样吧
 # sku_list_df["top_matched_gpt35"] = sku_list_df.apply(get_top_matched_by_llm, axis=1)
@@ -739,35 +726,372 @@ sku_list_clean_df.head(10)
 # In[ ]:
 
 
-biaoguo_df['monthsale_gmv']=biaoguo_df['monthsale'].astype(float)*biaoguo_df['finalstandardprice'].astype(float)
-biaoguo_df.sort_values(by=['monthsale_gmv'], ascending=False, inplace=True)
-biaoguo_df.head(20)[['monthsale_gmv','monthsale','goodsname']]
+# all_sorted_sku = []
+# added_sku_set = set()
+# top_n_to_sort = 2
+
+# for index, row in biaoguo_df.head(200)[
+#     [
+#         "top_matches",
+#         "goodsname",
+#         "categoryname",
+#         "monthsale_gmv",
+#         "monthsale",
+#         "finalstandardprice",
+#         "skucode",
+#         "specification",
+#         "grossweight",
+#         "url",
+#     ]
+# ].iterrows():
+#     new_row = {}
+#     new_row["biaoguo_goodsname"] = row["goodsname"]
+#     new_row["biaoguo_categoryname"] = row["categoryname"]
+#     new_row["biaoguo_monthsale_gmv"] = row["monthsale_gmv"]
+#     new_row["biaoguo_monthsale"] = row["monthsale"]
+#     new_row["biaoguo_finalstandardprice"] = row["finalstandardprice"]
+#     new_row["biaoguo_skucode"] = row["skucode"]
+#     new_row["biaoguo_specification"] = row["specification"]
+#     new_row["biaoguo_grossweight"] = row["grossweight"]
+#     new_row["biaoguo_url"] = row["url"]
+#     my_top_n = 0
+
+#     for index, matched_item in enumerate(row["top_matches"]):
+#         sku = matched_item["sku"]
+#         if sku in added_sku_set:
+#             print(f"duplicated sku:{sku}")
+#             continue
+#         on_sale = matched_item.get("onSale", "下架")
+#         if "下架" in on_sale:
+#             print(
+#                 f"sku未上架:{sku},{matched_item.get('onSale',False)}, {matched_item['sku_name']}, price:{matched_item['price']}"
+#             )
+#             continue
+#         my_top_n = my_top_n + 1
+#         if my_top_n > top_n_to_sort:
+#             print(f'为了防止太多重复的品...{matched_item["sku_name"]}')
+#             break
+#         new_row_with_xianmu = {}
+#         new_row_with_xianmu.update(new_row)
+#         new_row_with_xianmu["xianmu_sku"] = matched_item["sku"]
+#         new_row_with_xianmu["xianmu_picture"] = matched_item["picture"]
+#         new_row_with_xianmu["xianmu_price"] = matched_item["price"]
+#         new_row_with_xianmu["xianmu_onSale"] = matched_item["onSale"]
+#         new_row_with_xianmu["xianmu_weight"] = matched_item["weight"]
+#         new_row_with_xianmu["xianmu_weightNum"] = matched_item["weightNum"]
+#         new_row_with_xianmu["xianmu_sku_name"] = matched_item["sku_name"]
+#         new_row_with_xianmu["xianmu_categoryName"] = matched_item["categoryName"]
+#         new_row_with_xianmu["xianmu_buyer_name"] = matched_item["buyer_name"]
+#         all_sorted_sku.append(new_row_with_xianmu)
+#         added_sku_set.add(sku)
+
+# all_sorted_sku_df = pd.DataFrame(all_sorted_sku)
+# all_sorted_sku_df.head(10)
 
 
 # In[ ]:
 
 
-biaoguo_to_xianmu_top_n = 10
-biaoguo_with_matched = []
+# sorted_html_content=[]
+# for index, row in all_sorted_sku_df.iterrows():
+#     content = f"""<div class="xianmu-container no-list-style">
+#     <img class="large-img" src="{row['xianmu_picture']}">
+#     <ul>
+#     <li class="sku-title">{row['xianmu_sku']}, {row["xianmu_sku_name"]}</li>
+#     <li>鲜沐售价: <span class="sku-price">¥{row["xianmu_price"]}, ¥{round(float(row["xianmu_price"])/float(row['xianmu_weightNum'])/2, 2)}/斤</span>(毛重)</li>
+#     <li>规格:{row["xianmu_weight"]}, 毛重:{row.get('xianmu_weightNum', 0)*2}斤</li>
+#     <li>买手:{row["xianmu_buyer_name"]}, 是否上架: {row["xianmu_onSale"]}</li>
+#     <li class="sku-title">标果SKU:{row["biaoguo_skucode"]},{row["biaoguo_goodsname"]},{row["biaoguo_specification"]}</li>
+#     <li>标果售价: <span class="sku-price">¥{row["biaoguo_finalstandardprice"]}, ¥{round(float(row["biaoguo_finalstandardprice"])/float(row['biaoguo_grossweight']),2)}/斤</span>(毛重)</li>
+#     <li>标果月GMV: ¥{round(row["biaoguo_monthsale_gmv"],1)}, 月销{row["biaoguo_monthsale"]}件</li>
+#     </ul></div>""".replace('\n', '')
+#     sorted_html_content.append(content)
+
+# html_content = f"""<html><head><meta charset="UTF-8"><meta name="title" content="POP商品首页排序-{date_of_now}">
+# <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+# {css}
+# <style>
+# .xianmu-container{{font-size:smaller;}}
+# .large-img{{object-fit: contain;width:160;}}
+# .xianmu-container{{max-width:200px;padding:0.2vh 0.5vw;}}
+# .sorted-container{{display: flex;width: 100%;flex-wrap: wrap;padding: 20px;}}
+# .xianmu-container span.sku-price{{color:lightcoral;font-weight:bolder;}}
+# </style>
+# </head><body><div class="sorted-container">{''.join(sorted_html_content)}</div></body></html>"""
+
+# file_path = f"./data/pop/POP商品首页排序-根据标果销量-{date_of_now}.html"
+
+# # 保存HTML到本地文件：
+# with open(file_path, "w", encoding="utf-8") as f:
+#     f.write(html_content)
+
+# print(f"写入HTML成功！{file_path}")
+
+
+# ## 联合匹配标果、蜂果供、果速送、壹生鲜果等多家平台
+
+# ### 蜂果供
+
+# In[ ]:
+
+
+from odps_client import get_odps_sql_result_as_df
+
+fengguogong_sql = """
+SELECT  categoryname AS category_name
+        ,competitor
+        ,goodscode AS sku_code
+        ,spider_fetch_time
+        ,NULL AS goods_siphon_commission_rate
+        ,wholeggguoprice AS standard_price
+        ,wholeggguoprice AS final_standard_price
+        ,salenum AS month_sale
+        ,goodslogo AS url
+        ,NULL AS seller_siphon_commission_rate
+        ,ggguoprice AS unit_price_catty
+        ,priceunit AS unit
+        ,NULL AS seller_name
+        ,netweight AS gross_weight
+        ,roughweight AS net_weight
+        ,concat(sizedesc,pricedesc,',单果:',singlenutweight) AS specification
+        ,goodsname AS goods_name
+        ,NULL as seven_day_after_sale
+FROM    (
+            SELECT  *
+                    ,RANK() OVER (PARTITION BY id,goodscode ORDER BY spider_fetch_time DESC ) AS rnk
+            FROM    summerfarm_ds.spider_fengguogong_product_result_df
+            WHERE   ds = MAX_PT('summerfarm_ds.spider_fengguogong_product_result_df')
+        ) 
+WHERE   rnk = 1
+;
+"""
+
+fengguogong_df = get_odps_sql_result_as_df(sql=fengguogong_sql)
+fengguogong_df.head(10)
+
+
+# ### 标果-杭州
+
+# In[ ]:
+
+
+biaoguo_sql="""
+SELECT  categoryname AS category_name,
+        competitor,
+        skucode AS sku_code,
+        spider_fetch_time,
+        goodssiphoncommissionrate AS goods_siphon_commission_rate,
+        standardprice AS standard_price,
+        finalstandardprice AS final_standard_price,
+        monthsale AS month_sale,
+        attachurlr AS url,
+        sellersiphoncommissionrate AS seller_siphon_commission_rate,
+        unitpricecatty AS unit_price_catty,
+        unit,
+        sellername AS seller_name,
+        grossweight AS gross_weight,
+        netweight AS net_weight,
+        specification,
+        goodsname AS goods_name,
+        sevendayaftersale AS seven_day_after_sale
+FROM(
+            SELECT  *
+                    ,RANK() OVER (PARTITION BY id,skucode ORDER BY spider_fetch_time DESC ) AS rnk
+            FROM    summerfarm_ds.spider_biaoguo_with_prop_product_result_df
+            WHERE   ds = MAX_PT('summerfarm_ds.spider_biaoguo_with_prop_product_result_df')
+            AND     competitor = '标果-杭州' 
+            AND categoryname like '%/%'
+        ) 
+WHERE   rnk = 1
+LIMIT   100000;
+"""
+biaoguo_df=get_odps_sql_result_as_df(sql=biaoguo_sql)
+biaoguo_df.head(10)
+
+
+# ### 果速送
+
+# In[ ]:
+
+
+guosusong_sql="""
+select   typename AS category_name,
+    competitor,
+    goodscode AS sku_code,
+    spider_fetch_time,
+    NULL AS goods_siphon_commission_rate,
+    wholegssprice AS standard_price,
+    wholegssprice AS final_standard_price,
+    salenum AS month_sale,
+    goodslogo AS url,
+    NULL AS seller_siphon_commission_rate,
+    roughprice AS unit_price_catty,
+    priceunit AS unit,
+    NULL AS seller_name,
+    roughweight AS gross_weight,
+    netweight AS net_weight,
+    concat(sizedesc,',',pricedesc) AS specification,
+    goodsname AS goods_name,
+    NULL AS seven_day_after_sale
+from (
+            SELECT  *
+                    ,RANK() OVER (PARTITION BY id,goodscode ORDER BY spider_fetch_time DESC ) AS rnk
+            FROM    summerfarm_ds.spider_guosusong_product_result_df
+            WHERE   ds = MAX_PT('summerfarm_ds.spider_guosusong_product_result_df')
+        ) 
+WHERE   rnk = 1
+"""
+
+guosusong_df=get_odps_sql_result_as_df(sql=guosusong_sql)
+guosusong_df.head(10)
+
+
+# ### 壹生鲜果
+
+# In[ ]:
+
+
+yishengxianguo_sql="""
+select * from (
+    select category_name AS category_name,
+        competitor AS competitor,
+        goods_code AS sku_code,
+        spider_fetch_time AS spider_fetch_time,
+        sales_volume AS month_sale,
+        pic_path AS url,
+        min_unit AS unit,
+        provider_name AS seller_name,
+        goods_describe AS specification,
+        goods_name AS goods_name,
+        item_vos,basics_item,RANK() OVER (PARTITION BY goods_code ORDER BY spider_fetch_time DESC ) AS rnk
+    from summerfarm_ds.spider_yishengxianguo_product_result_df 
+    where ds=max_pt("summerfarm_ds.spider_yishengxianguo_product_result_df"))t
+where rnk=1
+"""
+
+yishengxianguo_df=get_odps_sql_result_as_df(sql=yishengxianguo_sql)
+
+all_yishengxianguo_items = []
+import re
+
+
+def extract_gross_weight(item_name):
+    # Use regex to find the number before '斤'
+    match = re.search(r"(\d+)(?=斤)", item_name)
+    if match:
+        return int(match.group(1))
+    else:
+        return None
+
+
+for inx, row in yishengxianguo_df.iterrows():
+    item = {}
+    item["category_name"] = row["category_name"]
+    item["competitor"] = row["competitor"]
+    item["sku_code"] = row["sku_code"]
+    item["spider_fetch_time"] = row["spider_fetch_time"]
+    item["url"] = row["url"]
+    item["unit"] = row["unit"]
+    item["seller_name"] = row["seller_name"]
+    item["specification"] = row["specification"]
+    item["goods_name"] = row["goods_name"]
+
+    json_string = (
+        row["item_vos"]
+        .replace("'", '"')
+        .replace("None", "null")
+        .replace("False", "false")
+        .replace("True", "true")
+    )
+    # print(json_string)
+    # Convert single quotes to double quotes
+    item_vo = json.loads(json_string)[0]
+    # print(item_vo)
+    item["goods_name"] = row["goods_name"]
+    item["specification"] = f"{item['specification']}, {item_vo['itemName']}"
+    item["final_standard_price"] = item_vo["price"]
+    item["standard_price"] = item_vo["price"]
+    item["seller_siphon_commission_rate"] = ""
+    item["goods_siphon_commission_rate"] = ""
+    item["month_sale"] = item_vo["saleNum"]
+    item["gross_weight"] = extract_gross_weight(item_vo["itemName"])
+    item["unit_price_catty"] = (
+        float(item_vo["price"]) / item["gross_weight"]
+        if item["gross_weight"] is not None
+        else 0
+    )
+    item["net_weight"] = "-1"
+    item["seven_day_after_sale"] = None
+    all_yishengxianguo_items.append(item)
+
+yishengxianguo_df=pd.DataFrame(all_yishengxianguo_items)
+
+
+# ### 合并起来
+
+# In[ ]:
+
+
+# Concatenating DataFrames
+all_competitor_df = pd.concat([biaoguo_df, guosusong_df, fengguogong_df, yishengxianguo_df], ignore_index=True)
+categories=all_competitor_df['category_name'].unique()
+
+print(f"所有的类目:{categories}")
+
+# List of known fruit categories
+fruit_keywords = ['榴莲', '火龙果', '菠萝', '山竹', '菠萝蜜', '蓝莓', '梨', '椰子', '柠檬', '猕猴桃', '牛油果', '芒果', '苹果', '柚',
+                  '葡萄', '桃', '李', '西瓜', '枣', '樱桃', '草莓', '橙', '荔枝', '柿子', '石榴', '杏', '桔', '柑', '甜瓜', '提子', '木瓜',
+                  '杨桃', '人参果', '释迦果', '莲雾', '芭乐', '百香果', '黄瓜']
+
+# Filter categories based on the fruit keywords
+fruit_categories = [category for category in categories if any(keyword in category for keyword in fruit_keywords)]
+
+# Filter rows where category_name is in fruit_categories
+fruit_filtered_df = all_competitor_df[all_competitor_df['category_name'].isin(fruit_categories)]
+
+# Filter rows where category_name is NOT in fruit_categories
+not_fruit_filtered_df = all_competitor_df[~all_competitor_df['category_name'].isin(fruit_categories)]
+
+print(f"过滤后的数量:{len(fruit_filtered_df)}, 过滤前的数量:{len(all_competitor_df)}")
+
+
+
+fruit_filtered_df["sku_embeddings"] = fruit_filtered_df.apply(get_competitor_like_biaoguo_embedding, axis=1)
+sku_list_df["sku_embeddings"] = sku_list_df.apply(get_xianmu_embedding, axis=1)
+
+fruit_filtered_df["category_embeddings"] = fruit_filtered_df['category_name'].apply(get_category_embedding)
+sku_list_df["category_embeddings"] = sku_list_df['categoryName'].apply(get_category_embedding)
+
+
+# In[ ]:
+
+
+fruit_filtered_df["monthsale_gmv"] = fruit_filtered_df["month_sale"].astype(
+    float
+) * fruit_filtered_df["final_standard_price"].astype(float)
+fruit_filtered_df.sort_values(
+    by=["competitor", "monthsale_gmv"], ascending=False, inplace=True
+)
+fruit_filtered_df.head(20)[["monthsale_gmv", "month_sale", "goods_name"]]
+
+all_competitor_to_xianmu_top_n = 10
 
 
 ## 把表格的商品映射到鲜沐上，标果的商品作为主键，和 def find_top_matches_for_xianmu() 的顺序是反过来的
-def find_top_matches_for_biaoguo(sku_row: pd.Series):
-    global biaoguo_with_matched
-    # print(f"finding top match rows for:{sku_row['sku_name']}")
+def find_top_xianmu_matches_for_competitor(competitor_sku_row: pd.Series):
     similarities = []
     for index, xianmu_row in sku_list_df.iterrows():
         category_similarity_score = calculate_cosine_similarity(
-            sku_row["category_embeddings"], xianmu_row["category_embeddings"]
+            competitor_sku_row["category_embeddings"], xianmu_row["category_embeddings"]
         )
         if category_similarity_score <= 0.88:
             # 如果类目的相似度小于0.88，则不需要再考虑名字的embedding
             print(
-                f'类目的相似度小于0.88:{category_similarity_score}, 标果类目:{sku_row["categoryname"]}, 鲜沐类目:{xianmu_row["categoryName"]}'
+                f'类目的相似度小于0.88:{category_similarity_score}, {competitor_sku_row["competitor"]}类目:{competitor_sku_row["category_name"]}, 鲜沐类目:{xianmu_row["categoryName"]}'
             )
             continue
         similarity_score = calculate_cosine_similarity(
-            sku_row["sku_embeddings"], xianmu_row["sku_embeddings"]
+            competitor_sku_row["sku_embeddings"], xianmu_row["sku_embeddings"]
         )
         # 类目embedding + sku embedding分数
         similarities.append(
@@ -778,223 +1102,128 @@ def find_top_matches_for_biaoguo(sku_row: pd.Series):
     sorted_similarities = sorted(similarities, key=lambda x: x[1], reverse=True)
 
     # Get the top N matches
-    top_n_matches = [item[0] for item in sorted_similarities[:biaoguo_to_xianmu_top_n]]
+    top_n_matches = [
+        item[0] for item in sorted_similarities[:all_competitor_to_xianmu_top_n]
+    ]
     print(
-        f"Matched rows for:{sku_row['goodsname']}, {[xianmu.get('sku_name') for xianmu in top_n_matches]}"
+        f"Matched rows for:{competitor_sku_row['goods_name']}, {[xianmu.get('sku_name') for xianmu in top_n_matches]}"
     )
-    sku_row["top_matches"] = top_n_matches
-    biaoguo_with_matched.append(sku_row)
+    competitor_sku_row["top_matches"] = top_n_matches
     return top_n_matches
 
 
-# with ThreadPoolExecutor(max_workers=8) as executor:
-#     futures = [
-#         executor.submit(find_top_matches_for_biaoguo, row.to_dict())
-#         for index, row in biaoguo_df.iterrows()
-#     ]
-#     concurrent.futures.wait(futures)
+fruit_filtered_df["top_matches"] = fruit_filtered_df.apply(
+    find_top_xianmu_matches_for_competitor, axis=1
+)
+fruit_filtered_df.head(10)[
+    ["top_matches", "goods_name", "category_name", "competitor", "monthsale_gmv"]
+]
 
-biaoguo_df["top_matches"] = biaoguo_df.apply(find_top_matches_for_biaoguo, axis=1)
-# biaoguo_df = pd.DataFrame(biaoguo_with_matched)
-biaoguo_df.head(10)[["top_matches", "goodsname", "categoryname", "monthsale_gmv"]]
-
-
-# ### 写入HTML（排序后）
-
-# In[ ]:
-
-
-all_sorted_sku = []
-added_sku_set = set()
-top_n_to_sort = 2
-
-for index, row in biaoguo_df.head(200)[
-    [
-        "top_matches",
-        "goodsname",
-        "categoryname",
-        "monthsale_gmv",
-        "monthsale",
-        "finalstandardprice",
-        "skucode",
-        "specification",
-        "grossweight",
-        "url",
-    ]
-].iterrows():
-    new_row = {}
-    new_row["biaoguo_goodsname"] = row["goodsname"]
-    new_row["biaoguo_categoryname"] = row["categoryname"]
-    new_row["biaoguo_monthsale_gmv"] = row["monthsale_gmv"]
-    new_row["biaoguo_monthsale"] = row["monthsale"]
-    new_row["biaoguo_finalstandardprice"] = row["finalstandardprice"]
-    new_row["biaoguo_skucode"] = row["skucode"]
-    new_row["biaoguo_specification"] = row["specification"]
-    new_row["biaoguo_grossweight"] = row["grossweight"]
-    new_row["biaoguo_url"] = row["url"]
-    my_top_n = 0
-
-    for index, matched_item in enumerate(row["top_matches"]):
-        sku = matched_item["sku"]
-        if sku in added_sku_set:
-            print(f"duplicated sku:{sku}")
-            continue
-        on_sale = matched_item.get("onSale", "下架")
-        if "下架" in on_sale:
-            print(
-                f"sku未上架:{sku},{matched_item.get('onSale',False)}, {matched_item['sku_name']}, price:{matched_item['price']}"
-            )
-            continue
-        my_top_n = my_top_n + 1
-        if my_top_n > top_n_to_sort:
-            print(f'为了防止太多重复的品...{matched_item["sku_name"]}')
-            break
-        new_row_with_xianmu = {}
-        new_row_with_xianmu.update(new_row)
-        new_row_with_xianmu["xianmu_sku"] = matched_item["sku"]
-        new_row_with_xianmu["xianmu_picture"] = matched_item["picture"]
-        new_row_with_xianmu["xianmu_price"] = matched_item["price"]
-        new_row_with_xianmu["xianmu_onSale"] = matched_item["onSale"]
-        new_row_with_xianmu["xianmu_weight"] = matched_item["weight"]
-        new_row_with_xianmu["xianmu_weightNum"] = matched_item["weightNum"]
-        new_row_with_xianmu["xianmu_sku_name"] = matched_item["sku_name"]
-        new_row_with_xianmu["xianmu_categoryName"] = matched_item["categoryName"]
-        new_row_with_xianmu["xianmu_buyer_name"] = matched_item["buyer_name"]
-        all_sorted_sku.append(new_row_with_xianmu)
-        added_sku_set.add(sku)
-
-all_sorted_sku_df = pd.DataFrame(all_sorted_sku)
-all_sorted_sku_df.head(10)
-
-
-# In[ ]:
-
-
-sorted_html_content=[]
-for index, row in all_sorted_sku_df.iterrows():
-    content = f"""<div class="xianmu-container no-list-style">
-    <img class="large-img" src="{row['xianmu_picture']}">
-    <ul>
-    <li class="sku-title">{row['xianmu_sku']}, {row["xianmu_sku_name"]}</li>
-    <li>鲜沐售价: <span class="sku-price">¥{row["xianmu_price"]}, ¥{round(float(row["xianmu_price"])/float(row['xianmu_weightNum'])/2, 2)}/斤</span>(毛重)</li>
-    <li>规格:{row["xianmu_weight"]}, 毛重:{row.get('xianmu_weightNum', 0)*2}斤</li>
-    <li>买手:{row["xianmu_buyer_name"]}, 是否上架: {row["xianmu_onSale"]}</li>
-    <li class="sku-title">标果SKU:{row["biaoguo_skucode"]},{row["biaoguo_goodsname"]},{row["biaoguo_specification"]}</li>
-    <li>标果售价: <span class="sku-price">¥{row["biaoguo_finalstandardprice"]}, ¥{round(float(row["biaoguo_finalstandardprice"])/float(row['biaoguo_grossweight']),2)}/斤</span>(毛重)</li>
-    <li>标果月GMV: ¥{round(row["biaoguo_monthsale_gmv"],1)}, 月销{row["biaoguo_monthsale"]}件</li>
-    </ul></div>""".replace('\n', '')
-    sorted_html_content.append(content)
-
-html_content = f"""<html><head><meta charset="UTF-8"><meta name="title" content="POP商品首页排序-{date_of_now}">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-{css}
-<style>
-.xianmu-container{{font-size:smaller;}}
-.large-img{{object-fit: contain;width:160;}}
-.xianmu-container{{max-width:200px;padding:0.2vh 0.5vw;}}
-.sorted-container{{display: flex;width: 100%;flex-wrap: wrap;padding: 20px;}}
-.xianmu-container span.sku-price{{color:lightcoral;font-weight:bolder;}}
-</style>
-</head><body><div class="sorted-container">{''.join(sorted_html_content)}</div></body></html>"""
-
-file_path = f"./data/pop/POP商品首页排序-根据标果销量-{date_of_now}.html"
-
-# 保存HTML到本地文件：
-with open(file_path, "w", encoding="utf-8") as f:
-    f.write(html_content)
-
-print(f"写入HTML成功！{file_path}")
-
-
-# ### 标果到鲜沐匹配-写入CSV
 
 # In[ ]:
 
 
 import pandasql
 
-static_df=pandasql.sqldf(f"""select 
-                            category_level2,
-                            sum(monthsale_gmv) as total_gmv 
-                         from biaoguo_clean_df 
-                         group by 1 order by 2 desc;""")
+fruit_filtered_df["category_level2"] = (
+    fruit_filtered_df["category_name"].str.split("/").str[0]
+)
 
-static_df
-
-
-# In[ ]:
-
-
-# Step 5: Split the 'categoryname' column and take the first element
-biaoguo_df["category_level2"] = biaoguo_df["categoryname"].str.split("/").str[0]
-
-biaoguo_clean_df = biaoguo_df[
+fruit_filtered_clean_df = fruit_filtered_df[
     [
-        "skucode",
-        "goodsname",
-        "categoryname",
-        "monthsale",
+        "sku_code",
+        "goods_name",
+        "category_name",
+        "month_sale",
         "monthsale_gmv",
         "category_level2",
+        "competitor",
     ]
 ]
 
 static_df = pandasql.sqldf(
-    "select categoryname,sum(monthsale_gmv) as total_gmv from biaoguo_clean_df group by categoryname order by 2 desc;"
+    """select category_name,competitor,sum(monthsale_gmv) as total_gmv 
+    from fruit_filtered_clean_df 
+    group by competitor,category_name 
+    order by total_gmv desc;"""
 )
 
-biaoguo_df.drop(columns=["category_monthsale_gmv"], inplace=True, errors="ignore")
-
-# Step 2: Merge total_gmv into biaoguo_df
-biaoguo_df = biaoguo_df.merge(
-    static_df[["categoryname", "total_gmv"]], on="categoryname", how="left"
+fruit_filtered_df.drop(
+    columns=["category_monthsale_gmv"], inplace=True, errors="ignore"
 )
 
-# Step 3: Rename the new column in biaoguo_df
-biaoguo_df.rename(columns={"total_gmv": "category_monthsale_gmv"}, inplace=True)
-biaoguo_df["monthsale_gmv_percentile_of_category"] = round(
+# Step 2: Merge total_gmv into fruit_filtered_df
+fruit_filtered_df = fruit_filtered_df.merge(
+    static_df[["category_name", "competitor", "total_gmv"]],
+    on=["category_name", "competitor"],
+    how="left",
+)
+
+# Step 3: Rename the new column in fruit_filtered_df
+fruit_filtered_df.rename(columns={"total_gmv": "category_monthsale_gmv"}, inplace=True)
+fruit_filtered_df["monthsale_gmv_percentile_of_category"] = round(
     100.00
-    * biaoguo_df["monthsale_gmv"].astype(float)
-    / biaoguo_df["category_monthsale_gmv"].astype(float),
+    * fruit_filtered_df["monthsale_gmv"].astype(float)
+    / fruit_filtered_df["category_monthsale_gmv"].astype(float),
     2,
 )
 # Step 4: Rank each item within its category based on monthsale_gmv
-biaoguo_df["category_rank"] = biaoguo_df.groupby("categoryname")["monthsale_gmv"].rank(
-    ascending=False
-)
+fruit_filtered_df["category_rank"] = fruit_filtered_df.groupby(
+    ["category_name", "competitor"]
+)["monthsale_gmv"].rank(ascending=False)
 
-biaoguo_top10_of_each_category_df = biaoguo_df[biaoguo_df["category_rank"] <= 10.0]
-biaoguo_top10_of_each_category_df = biaoguo_top10_of_each_category_df[
-    biaoguo_top10_of_each_category_df["category_monthsale_gmv"] > 1000.00
+fruit_filtered_top10_of_each_category_df = fruit_filtered_df[
+    fruit_filtered_df["category_rank"] <= 10.0
+]
+fruit_filtered_top10_of_each_category_df = fruit_filtered_top10_of_each_category_df[
+    fruit_filtered_top10_of_each_category_df["category_monthsale_gmv"] > 1000.00
 ]
 
-biaoguo_top10_of_each_category_df.head(10)[
+fruit_filtered_top10_of_each_category_df.head(10)[
     [
         "category_monthsale_gmv",
         "monthsale_gmv",
         "monthsale_gmv_percentile_of_category",
         "category_rank",
         "category_level2",
-        "categoryname",
-        "goodsname",
+        "category_name",
+        "goods_name",
+        "competitor",
     ]
 ]
 
 
+# In[ ]:
+
+
+from datetime import datetime, timedelta
+
+date_of_now = datetime.now().strftime("%Y-%m-%d")
 sku_list_for_csv_top200 = []
-for _, row in biaoguo_top10_of_each_category_df.iterrows():
-    csv_object = {}
-    biaoguo_content = f"""{row["skucode"]},{row["goodsname"]},{row["specification"]}
-标果售价: ¥{row["finalstandardprice"]}, ¥{round(float(row["finalstandardprice"])/float(row['grossweight']),2)}/斤(毛重)
-标果月GMV: ¥{round(row["monthsale_gmv"],1)}, 月销{row["monthsale"]}件
-毛重: {row["grossweight"]}斤, 商品抽佣:{row.get('goodssiphoncommissionrate',0)}%, 向卖家抽佣:{row.get('sellersiphoncommissionrate',0)}%"""
-    csv_object["标果skucode"] = row["skucode"]
+for _, row in fruit_filtered_top10_of_each_category_df.iterrows():
+    competitor = row["competitor"]
+    csv_object = {"competitor": competitor}
+    unit_price_catty = row["unit_price_catty"]
+    gross_weight = row.get("gross_weight", "")
+    if "" == gross_weight:
+        print(f"未找到gross_weight:{gross_weight}")
+    else:
+        unit_price_catty = round(
+            float(row.get("final_standard_price", "0.0"))
+            / float(row.get("gross_weight", "1")),
+            2,
+        )
+    competitor_content = f"""{row["sku_code"]},{row["goods_name"]},{row["specification"]}
+{competitor}售价: ¥{row.get("final_standard_price","0.0")}, ¥{unit_price_catty}/斤(毛重)
+{competitor}月GMV: ¥{round(row["monthsale_gmv"],1)}, 月销{row["month_sale"]}件
+毛重: {row["gross_weight"]}斤, 商品抽佣:{row.get('goods_siphon_commission_rate',0)}%, 向卖家抽佣:{row.get('seller_siphon_commission_rate',0)}%"""
+    csv_object[f"竞争对手skucode"] = row["sku_code"]
     csv_object[
-        "标果类目"
-    ] = f"""{row["categoryname"]}
+        f"竞争对手类目"
+    ] = f"""{row["category_name"]}
 类目月GMV:{row['category_monthsale_gmv']}
 本品占类目GMV百分比:{row['monthsale_gmv_percentile_of_category']}%"""
-    csv_object["标果SKU"] = biaoguo_content
+    csv_object[f"竞争对手SKU"] = competitor_content
 
     top_matches = row["top_matches"]
     for i in range(0, 20):
@@ -1010,48 +1239,140 @@ for _, row in biaoguo_top10_of_each_category_df.iterrows():
 
 sku_list_for_csv_top200_df = pd.DataFrame(sku_list_for_csv_top200)
 sku_list_for_csv_top200_df.to_csv(
-    f"./data/pop/顺鹿达SKU_vs_标果SKU_top热销200_{date_of_now}.csv", index=False
+    f"./data/pop/顺鹿达SKU_vs_竞争对手SKU_top热销200_{date_of_now}.csv",
+    index=False,
 )
-sku_list_for_csv_top200_df.head(2)
+
+for competitor in sku_list_for_csv_top200_df["competitor"].unique():
+    print(competitor)
+    competitor_df = sku_list_for_csv_top200_df[
+        sku_list_for_csv_top200_df["competitor"] == competitor
+    ]
+    competitor_df.drop_duplicates(
+        subset=[f"竞争对手skucode", "competitor"], inplace=True
+    )
+    competitor_df.to_csv(
+        f"./data/pop/顺鹿达SKU_vs_{competitor}SKU_top热销200_{date_of_now}.csv",
+        index=False,
+    )
 
 
 # In[ ]:
 
 
-import os
+# yishengxianguo_sql="""
+# select * from (
+#     select category_name AS category_name,
+#         competitor AS competitor,
+#         goods_code AS sku_code,
+#         spider_fetch_time AS spider_fetch_time,
+#         sales_volume AS month_sale,
+#         pic_path AS url,
+#         min_unit AS unit,
+#         provider_name AS seller_name,
+#         goods_describe AS specification,
+#         goods_name AS goods_name,
+#         item_vos,basics_item,RANK() OVER (PARTITION BY goods_code ORDER BY spider_fetch_time DESC ) AS rnk
+#     from summerfarm_ds.spider_yishengxianguo_product_result_df 
+#     where ds=max_pt("summerfarm_ds.spider_yishengxianguo_product_result_df"))t
+# where rnk=1
+# """
+
+# yishengxianguo_df=get_odps_sql_result_as_df(sql=yishengxianguo_sql)
+
+# all_yishengxianguo_items = []
+# import re
 
 
-def get_token(app_id='cli_a450bff26fbbd00d', app_secret=os.getenv("FEISHU_XGPT_APP_SECRET")):
-    url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
-    data = {
-        "Content-Type": "application/json; charset=utf-8",
-        "app_id": app_id,
-        "app_secret": app_secret,
-    }
-    response = requests.request("POST", url, data=data)
-    return json.loads(response.text)["tenant_access_token"]
+# def extract_gross_weight(item_name):
+#     # Use regex to find the number before '斤'
+#     match = re.search(r"(\d+)(?=斤)", item_name)
+#     if match:
+#         return int(match.group(1))
+#     else:
+#         return None
 
-tenant_access_token=get_token()
-print(tenant_access_token)
 
+# for inx, row in yishengxianguo_df.iterrows():
+#     item = {}
+#     item["category_name"] = row["category_name"]
+#     item["competitor"] = row["competitor"]
+#     item["sku_code"] = row["sku_code"]
+#     item["spider_fetch_time"] = row["spider_fetch_time"]
+#     item["url"] = row["url"]
+#     item["unit"] = row["unit"]
+#     item["seller_name"] = row["seller_name"]
+#     item["specification"] = row["specification"]
+#     item["goods_name"] = row["goods_name"]
+
+#     json_string = (
+#         row["item_vos"]
+#         .replace("'", '"')
+#         .replace("None", "null")
+#         .replace("False", "false")
+#         .replace("True", "true")
+#     )
+#     # print(json_string)
+#     # Convert single quotes to double quotes
+#     item_vo = json.loads(json_string)[0]
+#     # print(item_vo)
+#     item["goods_name"] = row["goods_name"]
+#     item["specification"] = f"{item['specification']}, {item_vo['itemName']}"
+#     item["final_standard_price"] = item_vo["price"]
+#     item["standard_price"] = item_vo["price"]
+#     item["seller_siphon_commission_rate"] = ""
+#     item["goods_siphon_commission_rate"] = ""
+#     item["month_sale"] = item_vo["saleNum"]
+#     item["gross_weight"] = extract_gross_weight(item_vo["itemName"])
+#     item["unit_price_catty"] = (
+#         float(item_vo["price"]) / item["gross_weight"]
+#         if item["gross_weight"] is not None
+#         else 0
+#     )
+#     item["net_weight"] = "-1"
+#     item["seven_day_after_sale"] = None
+#     all_yishengxianguo_items.append(item)
+
+# yishengxianguo_df=pd.DataFrame(all_yishengxianguo_items)
+
+
+# ### 展示一下HTML
 
 # In[ ]:
 
 
-def get_chat_list(tenant_access_token=tenant_access_token):
-    url = "https://open.feishu.cn/open-apis/im/v1/chats?page_size=20"
-    payload = ""
-    Authorization = "Bearer " + tenant_access_token
-    headers = {"Authorization": Authorization}
-    response = requests.get(url, headers=headers).json()
-    return response
+# sorted_html_content=[]
+# for index, row in fruit_filtered_df.iterrows():
+#     content = f"""<div class="xianmu-container no-list-style">
+#     <img class="large-img" src="{row['xianmu_picture']}">
+#     <ul>
+#     <li class="sku-title">{row['xianmu_sku']}, {row["xianmu_sku_name"]}</li>
+#     <li>鲜沐售价: <span class="sku-price">¥{row["xianmu_price"]}, ¥{round(float(row["xianmu_price"])/float(row['xianmu_weightNum'])/2, 2)}/斤</span>(毛重)</li>
+#     <li>规格:{row["xianmu_weight"]}, 毛重:{row.get('xianmu_weightNum', 0)*2}斤</li>
+#     <li>买手:{row["xianmu_buyer_name"]}, 是否上架: {row["xianmu_onSale"]}</li>
+#     <li class="sku-title">标果SKU:{row["biaoguo_skucode"]},{row["biaoguo_goodsname"]},{row["biaoguo_specification"]}</li>
+#     <li>标果售价: <span class="sku-price">¥{row["biaoguo_finalstandardprice"]}, ¥{round(float(row["biaoguo_finalstandardprice"])/float(row['biaoguo_grossweight']),2)}/斤</span>(毛重)</li>
+#     <li>标果月GMV: ¥{round(row["biaoguo_monthsale_gmv"],1)}, 月销{row["biaoguo_monthsale"]}件</li>
+#     </ul></div>""".replace('\n', '')
+#     sorted_html_content.append(content)
 
+# html_content = f"""<html><head><meta charset="UTF-8"><meta name="title" content="POP商品首页排序-{date_of_now}">
+# <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+# {css}
+# <style>
+# .xianmu-container{{font-size:smaller;}}
+# .large-img{{object-fit: contain;width:160;}}
+# .xianmu-container{{max-width:200px;padding:0.2vh 0.5vw;}}
+# .sorted-container{{display: flex;width: 100%;flex-wrap: wrap;padding: 20px;}}
+# .xianmu-container span.sku-price{{color:lightcoral;font-weight:bolder;}}
+# </style>
+# </head><body><div class="sorted-container">{''.join(sorted_html_content)}</div></body></html>"""
 
-print(get_chat_list())
+# file_path = f"./data/pop/POP商品首页排序-根据标果销量-{date_of_now}.html"
 
+# # 保存HTML到本地文件：
+# with open(file_path, "w", encoding="utf-8") as f:
+#     f.write(html_content)
 
-# In[ ]:
-
-
-
+# print(f"写入HTML成功！{file_path}")
 
