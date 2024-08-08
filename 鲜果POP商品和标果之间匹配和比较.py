@@ -830,12 +830,67 @@ sku_list_clean_df.head(10)
 
 # ## 联合匹配标果、蜂果供、果速送、壹生鲜果等多家平台
 
-# ### 蜂果供
+# ### 标准SQL模型
 
 # In[ ]:
 
 
 from odps_client import get_odps_sql_result_as_df
+
+ds_now = datetime.now().strftime("%Y%m%d")
+ds_3days_ago = (datetime.now() - timedelta(days=3)).strftime("%Y%m%d")
+
+
+def get_standard_df_by_sql_template(sql_template: str) -> pd.DataFrame:
+    competitor_df = get_odps_sql_result_as_df(sql=sql_template.format(ds=ds_now))
+    competitor_3d_df = get_odps_sql_result_as_df(
+        sql=sql_template.format(ds=ds_3days_ago)
+    )
+    return merge_now_and_3d_data(
+        competitor_df=competitor_df, competitor_3d_df=competitor_3d_df
+    )
+
+
+def merge_now_and_3d_data(
+    competitor_df: pd.DataFrame, competitor_3d_df: pd.DataFrame
+) -> pd.DataFrame:
+    competitor_3d_df.rename(columns={"month_sale": "sales_volume_3d"}, inplace=True)
+    competitor_df = pd.merge(
+        competitor_df,
+        competitor_3d_df[["sku_code", "sales_volume_3d"]],
+        on="sku_code",
+        how="left",
+    )
+
+    # Convert to numeric and handle errors
+    competitor_df["month_sale"] = pd.to_numeric(
+        competitor_df["month_sale"], errors="coerce"
+    )
+    competitor_df["sales_volume_3d"] = pd.to_numeric(
+        competitor_df["sales_volume_3d"], errors="coerce"
+    )
+
+    # Fill NaNs with a default value (e.g., 0) or handle them as needed
+    competitor_df["month_sale"].fillna(0, inplace=True)
+    competitor_df["sales_volume_3d"].fillna(0, inplace=True)
+
+    # Convert to integers
+    competitor_df["month_sale"] = competitor_df["month_sale"].astype(int)
+    competitor_df["sales_volume_3d"] = competitor_df["sales_volume_3d"].astype(int)
+
+    # Perform the subtraction
+    competitor_df["sales_volume_3d"] = (
+        competitor_df["month_sale"] - competitor_df["sales_volume_3d"]
+    )
+
+    competitor_df.sort_values(by="sales_volume_3d", ascending=False, inplace=True)
+    return competitor_df
+
+
+# ### 蜂果供
+
+# In[ ]:
+
 
 fengguogong_sql = """
 SELECT  categoryname AS category_name
@@ -860,13 +915,13 @@ FROM    (
             SELECT  *
                     ,RANK() OVER (PARTITION BY id,goodscode ORDER BY spider_fetch_time DESC ) AS rnk
             FROM    summerfarm_ds.spider_fengguogong_product_result_df
-            WHERE   ds = MAX_PT('summerfarm_ds.spider_fengguogong_product_result_df')
+            WHERE   ds = '{ds}'
         ) 
 WHERE   rnk = 1
 ;
 """
 
-fengguogong_df = get_odps_sql_result_as_df(sql=fengguogong_sql)
+fengguogong_df = get_standard_df_by_sql_template(fengguogong_sql)
 fengguogong_df.head(10)
 
 
@@ -898,14 +953,15 @@ FROM(
             SELECT  *
                     ,RANK() OVER (PARTITION BY id,skucode ORDER BY spider_fetch_time DESC ) AS rnk
             FROM    summerfarm_ds.spider_biaoguo_with_prop_product_result_df
-            WHERE   ds = MAX_PT('summerfarm_ds.spider_biaoguo_with_prop_product_result_df')
+            WHERE   ds = '{ds}'
             AND     competitor = '标果-杭州' 
-            AND categoryname like '%/%'
+            AND     categoryname like '%/%'
         ) 
 WHERE   rnk = 1
 LIMIT   100000;
 """
-biaoguo_df=get_odps_sql_result_as_df(sql=biaoguo_sql)
+
+biaoguo_df = get_standard_df_by_sql_template(biaoguo_sql)
 biaoguo_df.head(10)
 
 
@@ -914,7 +970,7 @@ biaoguo_df.head(10)
 # In[ ]:
 
 
-guosusong_sql="""
+guosusong_sql = """
 select   typename AS category_name,
     competitor,
     goodscode AS sku_code,
@@ -937,12 +993,12 @@ from (
             SELECT  *
                     ,RANK() OVER (PARTITION BY id,goodscode ORDER BY spider_fetch_time DESC ) AS rnk
             FROM    summerfarm_ds.spider_guosusong_product_result_df
-            WHERE   ds = MAX_PT('summerfarm_ds.spider_guosusong_product_result_df')
+            WHERE   ds = '{ds}'
         ) 
 WHERE   rnk = 1
 """
 
-guosusong_df=get_odps_sql_result_as_df(sql=guosusong_sql)
+guosusong_df = get_standard_df_by_sql_template(guosusong_sql)
 guosusong_df.head(10)
 
 
@@ -951,7 +1007,7 @@ guosusong_df.head(10)
 # In[ ]:
 
 
-yishengxianguo_sql="""
+yishengxianguo_sql = """
 select * from (
     select category_name AS category_name,
         competitor AS competitor,
@@ -965,13 +1021,16 @@ select * from (
         goods_name AS goods_name,
         item_vos,basics_item,RANK() OVER (PARTITION BY goods_code ORDER BY spider_fetch_time DESC ) AS rnk
     from summerfarm_ds.spider_yishengxianguo_product_result_df 
-    where ds=max_pt("summerfarm_ds.spider_yishengxianguo_product_result_df"))t
+    where ds='{ds}'
+)t
 where rnk=1
 """
 
-yishengxianguo_df=get_odps_sql_result_as_df(sql=yishengxianguo_sql)
+yishengxianguo_df = get_odps_sql_result_as_df(sql=yishengxianguo_sql.format(ds=ds_now))
+yishengxianguo_3d_df = get_odps_sql_result_as_df(
+    sql=yishengxianguo_sql.format(ds=ds_3days_ago)
+)
 
-all_yishengxianguo_items = []
 import re
 
 
@@ -984,47 +1043,57 @@ def extract_gross_weight(item_name):
         return None
 
 
-for inx, row in yishengxianguo_df.iterrows():
-    item = {}
-    item["category_name"] = row["category_name"]
-    item["competitor"] = row["competitor"]
-    item["sku_code"] = row["sku_code"]
-    item["spider_fetch_time"] = row["spider_fetch_time"]
-    item["url"] = row["url"]
-    item["unit"] = row["unit"]
-    item["seller_name"] = row["seller_name"]
-    item["specification"] = row["specification"]
-    item["goods_name"] = row["goods_name"]
+def convert_yishengxianguo_df(yishengxianguo_df: pd.DataFrame) -> pd.DataFrame:
+    all_yishengxianguo_items = []
+    for inx, row in yishengxianguo_df.iterrows():
+        item = {}
+        item["category_name"] = row["category_name"]
+        item["competitor"] = row["competitor"]
+        item["sku_code"] = row["sku_code"]
+        item["spider_fetch_time"] = row["spider_fetch_time"]
+        item["url"] = row["url"]
+        item["unit"] = row["unit"]
+        item["seller_name"] = row["seller_name"]
+        item["specification"] = row["specification"]
+        item["goods_name"] = row["goods_name"]
 
-    json_string = (
-        row["item_vos"]
-        .replace("'", '"')
-        .replace("None", "null")
-        .replace("False", "false")
-        .replace("True", "true")
-    )
-    # print(json_string)
-    # Convert single quotes to double quotes
-    item_vo = json.loads(json_string)[0]
-    # print(item_vo)
-    item["goods_name"] = row["goods_name"]
-    item["specification"] = f"{item['specification']}, {item_vo['itemName']}"
-    item["final_standard_price"] = item_vo["price"]
-    item["standard_price"] = item_vo["price"]
-    item["seller_siphon_commission_rate"] = ""
-    item["goods_siphon_commission_rate"] = ""
-    item["month_sale"] = item_vo["saleNum"]
-    item["gross_weight"] = extract_gross_weight(item_vo["itemName"])
-    item["unit_price_catty"] = (
-        float(item_vo["price"]) / item["gross_weight"]
-        if item["gross_weight"] is not None
-        else 0
-    )
-    item["net_weight"] = "-1"
-    item["seven_day_after_sale"] = None
-    all_yishengxianguo_items.append(item)
+        json_string = (
+            row["item_vos"]
+            .replace("'", '"')
+            .replace("None", "null")
+            .replace("False", "false")
+            .replace("True", "true")
+        )
+        # print(json_string)
+        # Convert single quotes to double quotes
+        item_vo = json.loads(json_string)[0]
+        # print(item_vo)
+        item["goods_name"] = row["goods_name"]
+        item["specification"] = f"{item['specification']}, {item_vo['itemName']}"
+        item["final_standard_price"] = item_vo["price"]
+        item["standard_price"] = item_vo["price"]
+        item["seller_siphon_commission_rate"] = ""
+        item["goods_siphon_commission_rate"] = ""
+        item["month_sale"] = item_vo["saleNum"]
+        item["gross_weight"] = extract_gross_weight(item_vo["itemName"])
+        item["unit_price_catty"] = (
+            float(item_vo["price"]) / item["gross_weight"]
+            if item["gross_weight"] is not None
+            else 0
+        )
+        item["net_weight"] = "-1"
+        item["seven_day_after_sale"] = None
+        all_yishengxianguo_items.append(item)
+    return pd.DataFrame(all_yishengxianguo_items)
 
-yishengxianguo_df=pd.DataFrame(all_yishengxianguo_items)
+
+yishengxianguo_df = convert_yishengxianguo_df(yishengxianguo_df)
+yishengxianguo_3d_df = convert_yishengxianguo_df(yishengxianguo_3d_df)
+
+yishengxianguo_df = merge_now_and_3d_data(
+    competitor_df=yishengxianguo_df, competitor_3d_df=yishengxianguo_3d_df
+)
+yishengxianguo_df.head(10)
 
 
 # ### 合并起来
@@ -1034,6 +1103,7 @@ yishengxianguo_df=pd.DataFrame(all_yishengxianguo_items)
 
 # Concatenating DataFrames
 all_competitor_df = pd.concat([biaoguo_df, guosusong_df, fengguogong_df, yishengxianguo_df], ignore_index=True)
+
 categories=all_competitor_df['category_name'].unique()
 
 print(f"所有的类目:{categories}")
@@ -1069,10 +1139,24 @@ sku_list_df["category_embeddings"] = sku_list_df['categoryName'].apply(get_categ
 fruit_filtered_df["monthsale_gmv"] = fruit_filtered_df["month_sale"].astype(
     float
 ) * fruit_filtered_df["final_standard_price"].astype(float)
+
+fruit_filtered_df["last_3d_gmv"] = fruit_filtered_df[
+    "sales_volume_3d"
+] * fruit_filtered_df["final_standard_price"].astype(float)
+
 fruit_filtered_df.sort_values(
-    by=["competitor", "monthsale_gmv"], ascending=False, inplace=True
+    by=["competitor", "last_3d_gmv", "monthsale_gmv"], ascending=False, inplace=True
 )
-fruit_filtered_df.head(20)[["monthsale_gmv", "month_sale", "goods_name"]]
+fruit_filtered_df.head(20)[
+    [
+        "last_3d_gmv",
+        "monthsale_gmv",
+        "sales_volume_3d",
+        "month_sale",
+        "goods_name",
+        "competitor",
+    ]
+]
 
 all_competitor_to_xianmu_top_n = 10
 
@@ -1116,7 +1200,14 @@ fruit_filtered_df["top_matches"] = fruit_filtered_df.apply(
     find_top_xianmu_matches_for_competitor, axis=1
 )
 fruit_filtered_df.head(10)[
-    ["top_matches", "goods_name", "category_name", "competitor", "monthsale_gmv"]
+    [
+        "top_matches",
+        "goods_name",
+        "category_name",
+        "competitor",
+        "last_3d_gmv",
+        "monthsale_gmv",
+    ]
 ]
 
 
@@ -1136,44 +1227,57 @@ fruit_filtered_clean_df = fruit_filtered_df[
         "category_name",
         "month_sale",
         "monthsale_gmv",
+        "last_3d_gmv",
         "category_level2",
         "competitor",
     ]
 ]
 
 static_df = pandasql.sqldf(
-    """select category_name,competitor,sum(monthsale_gmv) as total_gmv 
+    """select category_name,competitor
+    ,sum(monthsale_gmv) as category_monthsale_gmv 
+    ,sum(last_3d_gmv) as category_3d_gmv 
     from fruit_filtered_clean_df 
-    group by competitor,category_name 
-    order by total_gmv desc;"""
-)
-
-fruit_filtered_df.drop(
-    columns=["category_monthsale_gmv"], inplace=True, errors="ignore"
+    group by competitor,category_name"""
 )
 
 # Step 2: Merge total_gmv into fruit_filtered_df
-fruit_filtered_df = fruit_filtered_df.merge(
-    static_df[["category_name", "competitor", "total_gmv"]],
+fruit_filtered_with_category_gmv_df = fruit_filtered_df.merge(
+    static_df[
+        ["category_name", "competitor", "category_monthsale_gmv", "category_3d_gmv"]
+    ],
     on=["category_name", "competitor"],
     how="left",
 )
 
-# Step 3: Rename the new column in fruit_filtered_df
-fruit_filtered_df.rename(columns={"total_gmv": "category_monthsale_gmv"}, inplace=True)
-fruit_filtered_df["monthsale_gmv_percentile_of_category"] = round(
+fruit_filtered_with_category_gmv_df.head(10)
+
+fruit_filtered_with_category_gmv_df["monthsale_gmv_percentile_of_category"] = round(
     100.00
-    * fruit_filtered_df["monthsale_gmv"].astype(float)
-    / fruit_filtered_df["category_monthsale_gmv"].astype(float),
+    * fruit_filtered_with_category_gmv_df["monthsale_gmv"].astype(float)
+    / fruit_filtered_with_category_gmv_df["category_monthsale_gmv"].astype(float),
     2,
 )
-# Step 4: Rank each item within its category based on monthsale_gmv
-fruit_filtered_df["category_rank"] = fruit_filtered_df.groupby(
-    ["category_name", "competitor"]
-)["monthsale_gmv"].rank(ascending=False)
 
-fruit_filtered_top10_of_each_category_df = fruit_filtered_df[
-    fruit_filtered_df["category_rank"] <= 10.0
+fruit_filtered_with_category_gmv_df.head(10)
+
+fruit_filtered_with_category_gmv_df["last_3d_gmv_percentile_of_category"] = round(
+    100.00
+    * fruit_filtered_with_category_gmv_df["last_3d_gmv"].astype(float)
+    / fruit_filtered_with_category_gmv_df["category_3d_gmv"].astype(float),
+    2,
+)
+
+
+# Step 4: Rank each item within its category based on monthsale_gmv
+fruit_filtered_with_category_gmv_df["category_rank"] = (
+    fruit_filtered_with_category_gmv_df.groupby(["category_name", "competitor"])[
+        "last_3d_gmv"
+    ].rank(ascending=False)
+)
+
+fruit_filtered_top10_of_each_category_df = fruit_filtered_with_category_gmv_df[
+    fruit_filtered_with_category_gmv_df["category_rank"] <= 10.0
 ]
 fruit_filtered_top10_of_each_category_df = fruit_filtered_top10_of_each_category_df[
     fruit_filtered_top10_of_each_category_df["category_monthsale_gmv"] > 1000.00
@@ -1182,7 +1286,9 @@ fruit_filtered_top10_of_each_category_df = fruit_filtered_top10_of_each_category
 fruit_filtered_top10_of_each_category_df.head(10)[
     [
         "category_monthsale_gmv",
+        "last_3d_gmv",
         "monthsale_gmv",
+        "last_3d_gmv_percentile_of_category",
         "monthsale_gmv_percentile_of_category",
         "category_rank",
         "category_level2",
@@ -1216,13 +1322,15 @@ for _, row in fruit_filtered_top10_of_each_category_df.iterrows():
     competitor_content = f"""{row["sku_code"]},{row["goods_name"]},{row["specification"]}
 {competitor}售价: ¥{row.get("final_standard_price","0.0")}, ¥{unit_price_catty}/斤(毛重)
 {competitor}月GMV: ¥{round(row["monthsale_gmv"],1)}, 月销{row["month_sale"]}件
+{competitor}近3日GMV: ¥{round(row["last_3d_gmv"],1)}, 近3日销{row["sales_volume_3d"]}件
 毛重: {row["gross_weight"]}斤, 商品抽佣:{row.get('goods_siphon_commission_rate',0)}%, 向卖家抽佣:{row.get('seller_siphon_commission_rate',0)}%"""
     csv_object[f"竞争对手skucode"] = row["sku_code"]
     csv_object[
         f"竞争对手类目"
     ] = f"""{row["category_name"]}
 类目月GMV:{row['category_monthsale_gmv']}
-本品占类目GMV百分比:{row['monthsale_gmv_percentile_of_category']}%"""
+类目近3日GMV:{row['category_3d_gmv']}
+近3日占类目GMV百分比:{row['last_3d_gmv_percentile_of_category']}%, 月GMV占比:{row['monthsale_gmv_percentile_of_category']}%"""
     csv_object[f"竞争对手SKU"] = competitor_content
 
     top_matches = row["top_matches"]
@@ -1238,6 +1346,9 @@ for _, row in fruit_filtered_top10_of_each_category_df.iterrows():
     sku_list_for_csv_top200.append(csv_object)
 
 sku_list_for_csv_top200_df = pd.DataFrame(sku_list_for_csv_top200)
+sku_list_for_csv_top200_df.drop_duplicates(
+    subset=[f"竞争对手skucode", "competitor"], inplace=True
+)
 sku_list_for_csv_top200_df.to_csv(
     f"./data/pop/顺鹿达SKU_vs_竞争对手SKU_top热销200_{date_of_now}.csv",
     index=False,
@@ -1248,92 +1359,10 @@ for competitor in sku_list_for_csv_top200_df["competitor"].unique():
     competitor_df = sku_list_for_csv_top200_df[
         sku_list_for_csv_top200_df["competitor"] == competitor
     ]
-    competitor_df.drop_duplicates(
-        subset=[f"竞争对手skucode", "competitor"], inplace=True
-    )
     competitor_df.to_csv(
         f"./data/pop/顺鹿达SKU_vs_{competitor}SKU_top热销200_{date_of_now}.csv",
         index=False,
     )
-
-
-# In[ ]:
-
-
-# yishengxianguo_sql="""
-# select * from (
-#     select category_name AS category_name,
-#         competitor AS competitor,
-#         goods_code AS sku_code,
-#         spider_fetch_time AS spider_fetch_time,
-#         sales_volume AS month_sale,
-#         pic_path AS url,
-#         min_unit AS unit,
-#         provider_name AS seller_name,
-#         goods_describe AS specification,
-#         goods_name AS goods_name,
-#         item_vos,basics_item,RANK() OVER (PARTITION BY goods_code ORDER BY spider_fetch_time DESC ) AS rnk
-#     from summerfarm_ds.spider_yishengxianguo_product_result_df 
-#     where ds=max_pt("summerfarm_ds.spider_yishengxianguo_product_result_df"))t
-# where rnk=1
-# """
-
-# yishengxianguo_df=get_odps_sql_result_as_df(sql=yishengxianguo_sql)
-
-# all_yishengxianguo_items = []
-# import re
-
-
-# def extract_gross_weight(item_name):
-#     # Use regex to find the number before '斤'
-#     match = re.search(r"(\d+)(?=斤)", item_name)
-#     if match:
-#         return int(match.group(1))
-#     else:
-#         return None
-
-
-# for inx, row in yishengxianguo_df.iterrows():
-#     item = {}
-#     item["category_name"] = row["category_name"]
-#     item["competitor"] = row["competitor"]
-#     item["sku_code"] = row["sku_code"]
-#     item["spider_fetch_time"] = row["spider_fetch_time"]
-#     item["url"] = row["url"]
-#     item["unit"] = row["unit"]
-#     item["seller_name"] = row["seller_name"]
-#     item["specification"] = row["specification"]
-#     item["goods_name"] = row["goods_name"]
-
-#     json_string = (
-#         row["item_vos"]
-#         .replace("'", '"')
-#         .replace("None", "null")
-#         .replace("False", "false")
-#         .replace("True", "true")
-#     )
-#     # print(json_string)
-#     # Convert single quotes to double quotes
-#     item_vo = json.loads(json_string)[0]
-#     # print(item_vo)
-#     item["goods_name"] = row["goods_name"]
-#     item["specification"] = f"{item['specification']}, {item_vo['itemName']}"
-#     item["final_standard_price"] = item_vo["price"]
-#     item["standard_price"] = item_vo["price"]
-#     item["seller_siphon_commission_rate"] = ""
-#     item["goods_siphon_commission_rate"] = ""
-#     item["month_sale"] = item_vo["saleNum"]
-#     item["gross_weight"] = extract_gross_weight(item_vo["itemName"])
-#     item["unit_price_catty"] = (
-#         float(item_vo["price"]) / item["gross_weight"]
-#         if item["gross_weight"] is not None
-#         else 0
-#     )
-#     item["net_weight"] = "-1"
-#     item["seven_day_after_sale"] = None
-#     all_yishengxianguo_items.append(item)
-
-# yishengxianguo_df=pd.DataFrame(all_yishengxianguo_items)
 
 
 # ### 展示一下HTML
