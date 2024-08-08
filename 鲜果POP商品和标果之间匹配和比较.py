@@ -1324,14 +1324,22 @@ for _, row in fruit_filtered_top10_of_each_category_df.iterrows():
 {competitor}月GMV: ¥{round(row["monthsale_gmv"],1)}, 月销{row["month_sale"]}件
 {competitor}近3日GMV: ¥{round(row["last_3d_gmv"],1)}, 近3日销{row["sales_volume_3d"]}件
 毛重: {row["gross_weight"]}斤, 商品抽佣:{row.get('goods_siphon_commission_rate',0)}%, 向卖家抽佣:{row.get('seller_siphon_commission_rate',0)}%"""
-    csv_object[f"竞争对手skucode"] = row["sku_code"]
-    csv_object[
-        f"竞争对手类目"
-    ] = f"""{row["category_name"]}
-类目月GMV:{row['category_monthsale_gmv']}
-类目近3日GMV:{row['category_3d_gmv']}
-近3日占类目GMV百分比:{row['last_3d_gmv_percentile_of_category']}%, 月GMV占比:{row['monthsale_gmv_percentile_of_category']}%"""
-    csv_object[f"竞争对手SKU"] = competitor_content
+    csv_object["竞争对手skucode"] = row["sku_code"]
+    csv_object["竞争对手类目"] = f"""{row["category_name"]}"""
+    csv_object["类目月GMV"] = f"{row['category_monthsale_gmv']}"
+    csv_object["类目近3日GMV"] = f"{row['category_3d_gmv']}"
+    csv_object["近3日占类目GMV百分比"] = f"{row['last_3d_gmv_percentile_of_category']}%"
+    csv_object["月GMV占类目百分比"] = f"{row['monthsale_gmv_percentile_of_category']}%"
+    csv_object["竞争对手SKU售价"] = (
+        f"""¥{row.get("final_standard_price","0.0")}, ¥{unit_price_catty}/斤(毛重)"""
+    )
+    csv_object["竞争对手SKU月GMV"] = (
+        f"""¥{round(row["monthsale_gmv"],1)}, 月销{row["month_sale"]}件"""
+    )
+    csv_object["竞争对手SKU近3日GMV"] = (
+        f"""¥{round(row["last_3d_gmv"],1)}, 近3日销{row["sales_volume_3d"]}件"""
+    )
+    csv_object["竞争对手SKU"] = competitor_content
 
     top_matches = row["top_matches"]
     for i in range(0, 20):
