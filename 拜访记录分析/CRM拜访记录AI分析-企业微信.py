@@ -520,7 +520,7 @@ filter_condition = bd_follow_up_record_df["拜访内容_segments"].apply(
 
 default_json_value = json.dumps(
     {
-        "客户是否有跟销售员互动": "无",
+        "客户是否有跟销售员互动": "无,默认值",
         "销售向客户推荐了哪些具体的活动": "无",
         "销售向客户推荐了哪些具体的商品": "无",
         "客户的主要采买渠道": "无",
@@ -531,31 +531,39 @@ default_json_value = json.dumps(
         "销售员本次拜访的主要目的": "无",
         "销售员解决了客户哪些问题": "无",
         "拜访记录完整性打分": 0,
-    }, ensure_ascii=False
+    },
+    ensure_ascii=False,
 )
 
-bd_follow_up_record_df.loc[filter_condition, "AI分析"] = default_json_value
 
-# Apply the function to the remaining rows
-bd_follow_up_record_df.loc[~filter_condition, "AI分析"] = bd_follow_up_record_df.loc[
-    ~filter_condition
-].apply(
-    lambda row: call_ai_api_to_get_extract_visit_info(
-        f"对话条数{len(row['拜访内容_segments'])}条, 通话记录:{row['拜访内容_segments']}"
-    ),
-    axis=1,
+def create_ai_analytics_for_row(row):
+    visit_text = f"对话条数{len(row['拜访内容_segments'])}条, 通话记录:{row['拜访内容_segments']}"
+    print(f"{row['拜访人']}, visit_text:{visit_text}")
+    segments = row["拜访内容_segments"]
+    segments_with_text = [
+        segment
+        for segment in segments
+        if "非文本" not in segment and "您好，您的服务已升级" not in segment
+    ]
+    if len(segments_with_text) == 0:
+        print(f"{row['拜访人']}, 没有文本内容, 使用默认值")
+        return default_json_value
+    return call_ai_api_to_get_extract_visit_info(
+        f"对话条数{len(segments)}条, 通话记录:{segments_with_text}"
+    )
+
+
+bd_follow_up_record_df["AI分析"] = bd_follow_up_record_df.apply(
+    create_ai_analytics_for_row, axis=1
 )
 
 
 # In[ ]:
 
 
-# Extract '拜访记录完整性打分' from 'AI分析' column
 bd_follow_up_record_df['拜访记录完整性打分'] = bd_follow_up_record_df['AI分析'].apply(
     lambda x: json.loads(x).get('拜访记录完整性打分', '0')
 )
-
-# Convert to numeric, replacing '未知' with NaN
 bd_follow_up_record_df['拜访记录完整性打分'] = pd.to_numeric(bd_follow_up_record_df['拜访记录完整性打分'], errors='coerce')
 
 
@@ -564,11 +572,10 @@ bd_follow_up_record_df['拜访记录完整性打分'] = pd.to_numeric(bd_follow_
 
 # 为哪些打分大于等于60分的聊天记录单独进行'AI总结'
 
-bd_follow_up_record_df["AI总结"] = bd_follow_up_record_df.apply(
-    lambda row: (
-        "拜访记录不够完整，无需AI总结"
-        if row["拜访记录完整性打分"] < 60
-        else call_azure_openai(
+
+def create_ai_summary_for_row(row):
+    if row["拜访记录完整性打分"] >= 60:
+        return call_azure_openai(
             is_gpt4o=False,
             json=False,
             messages=[
@@ -586,11 +593,18 @@ bd_follow_up_record_df["AI总结"] = bd_follow_up_record_df.apply(
                 },
             ],
         )[0]
-    ),
-    axis=1,
+
+    else:
+        return f"拜访记录不够完整，无需AI总结, 打分:{row['拜访记录完整性打分']}, 内容:{row['拜访内容_segments']}"
+
+
+bd_follow_up_record_df["AI总结"] = bd_follow_up_record_df.apply(
+    create_ai_summary_for_row, axis=1
 )
 
-bd_follow_up_record_df.sort_values(by="拜访记录完整性打分", ascending=False, inplace=True)
+bd_follow_up_record_df.sort_values(
+    by="拜访记录完整性打分", ascending=False, inplace=True
+)
 
 
 # In[ ]:
@@ -605,10 +619,10 @@ def extract_ai_result(ai_result, key):
     return json.loads(ai_result).get(key, "未知")
 
 
-for sale_man_name in bd_follow_up_record_df["拜访人"].unique():
+for sale_man_name in bd_follow_up_record_df["BD企业微信ID"].unique():
     logging.info(f"开始处理:{sale_man_name}的拜访记录")
     sale_man_df = bd_follow_up_record_df[
-        bd_follow_up_record_df["拜访人"] == sale_man_name
+        bd_follow_up_record_df["BD企业微信ID"] == sale_man_name
     ].copy()
 
     # Create a valid filename by replacing any characters that might be problematic in filenames
@@ -620,7 +634,7 @@ for sale_man_name in bd_follow_up_record_df["拜访人"].unique():
     filename = f"./{output_dir}/{safe_city_name}_{ds}_拜访记录.csv"
     sale_man_df[
         [
-            "拜访人",
+            "BD企业微信ID",
             "m1负责人",
             "商户名",
             "距离上次下单天数",
@@ -648,7 +662,7 @@ for sale_man_name in bd_follow_up_record_df["拜访人"].unique():
 
     display_keys = [
         "销售区域",
-        "拜访人",
+        "BD企业微信ID",
         "m1负责人",
         "商户名",
         "距离上次下单天数",
@@ -665,7 +679,7 @@ for sale_man_name in bd_follow_up_record_df["拜访人"].unique():
 
     ai_csv_analytics_keys = [
         "销售区域",
-        "拜访人",
+        "BD企业微信ID",
         "m1负责人",
         "商户名",
         "距离上次下单天数",
@@ -678,37 +692,7 @@ for sale_man_name in bd_follow_up_record_df["拜访人"].unique():
 
     print(f"{sale_man_name}, \ncsv_string:{csv_string}")
 
-    if not sale_man_df.empty:
-        completeness_score_mean = sale_man_df["拜访记录完整性打分"].mean()
-        zero_score_ratio = (
-            len(sale_man_df[sale_man_df["拜访记录完整性打分"] == 0])
-            * 1.0
-            / len(sale_man_df)
-        )
-        if completeness_score_mean < 5 or zero_score_ratio > 0.9:
-            error_msg = f"销售员{sale_man_name} 的企业微信拜访记录完整性太差，无需生成汇总报告!ds:{ds}"
-            print(error_msg)
-            markdown_filename = (
-                f"{output_dir}/{sale_man_name}_{ds}_企微拜访记录完整性太差.md"
-            )
-            with open(markdown_filename, "w", encoding="utf-8") as md_file:
-                md_file.write(
-                    f"## {sale_man_name}的企业微信拜访记录完整性太差，无需生成汇总报告\n\n"
-                )
-                md_file.write(f"**销售员**: {sale_man_name}\n\n")
-                md_file.write(f"**日期**: {ds}\n\n")
-                md_file.write(f"**错误信息**: {error_msg}\n\n")
-                md_file.write(f"**拜访记录概览**:\n\n")
-                md_file.write(
-                    sale_man_df[ai_csv_analytics_keys].describe().to_markdown()
-                )
-        else:
-            print(
-                f"销售员{sale_man_name} 的拜访记录完整性打分均值为{completeness_score_mean}, 即将生成汇总报告ds:{ds}"
-            )
-            call_ai_api_to_get_insigns(csv_string=csv_string, city=safe_city_name)
-    else:
-        print(f"销售员{sale_man_name} 的拜访记录为空，无需生成汇总报告!ds:{ds}")
+    call_ai_api_to_get_insigns(csv_string=csv_string, city=safe_city_name)
 
 
 # In[ ]:
