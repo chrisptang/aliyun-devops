@@ -97,7 +97,8 @@ def ensure_all_df_columns_in_odps_table(df, table_name):
     return True
 
 
-def write_pandas_df_into_odps(df, table_name, partition_spec) -> bool:
+
+def write_pandas_df_into_odps(df, table_name, partition_spec, overwrite=False) -> bool:
     if df is None or len(df) <= 0:
         logging.info(f"数据DF为空, table:{table_name}")
         return False
@@ -113,7 +114,7 @@ def write_pandas_df_into_odps(df, table_name, partition_spec) -> bool:
                 partition=partition_spec,
                 drop_partition=False,
                 create_partition=True,
-                overwrite=False,
+                overwrite=overwrite,
                 lifecycle=365,
             )
             logging.info(
