@@ -1,6 +1,7 @@
 alibabacloud_sls20201230
 alibabacloud_tea_openapi
 alibabacloud_tea_util
+alibabacloud_devops20210625
 ffmpeg
 ffmpeg_python
 openai
