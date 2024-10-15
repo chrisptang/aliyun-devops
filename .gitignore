@@ -1,0 +1,10 @@
+data/
+*.csv
+.DS_Store
+__pycache__/
+*.xlsx
+hangzhou.json
+app.log
+.venv/
+.vscode/
+商城价格展示优化AB实验结果_*
