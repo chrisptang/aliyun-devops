@@ -19,10 +19,9 @@ logging.basicConfig(
         logging.StreamHandler(),  # Logs to the console
     ],
 )
+# import json
 
-import json
-
-logging.info(json.dumps(dict(os.environ), indent=2))
+# logging.info(json.dumps(dict(os.environ), indent=2))
 
 ALIBABA_CLOUD_ACCESS_KEY_ID = os.environ["ALIBABA_CLOUD_ACCESS_KEY_ID"]
 ALIBABA_CLOUD_ACCESS_KEY_SECRET = os.environ["ALIBABA_CLOUD_ACCESS_KEY_SECRET"]
@@ -44,6 +43,7 @@ odps = ODPS(
 def create_directory_if_not_exists(path):
     if not os.path.exists(path):
         os.makedirs(path)
+    return path
 
 
 from datetime import datetime
