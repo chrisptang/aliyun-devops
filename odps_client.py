@@ -35,7 +35,7 @@ logging.info(f"Thread count: {THREAD_CNT}")
 odps = ODPS(
     ALIBABA_CLOUD_ACCESS_KEY_ID,
     ALIBABA_CLOUD_ACCESS_KEY_SECRET,
-    project="summerfarm_ds_dev",
+    project="summerfarm_ds",
     endpoint="http://service.cn-hangzhou.maxcompute.aliyun.com/api",
 )
 
@@ -59,7 +59,7 @@ def get_odps_sql_result_as_df(sql) -> pd.DataFrame:
     instance = odps.execute_sql(sql, hints=hints)
     instance.wait_for_success()
     pd_df = None
-    with instance.open_reader(tunnel=True) as reader:
+    with instance.open_reader(tunnel=True, limit=False) as reader:
         # type of pd_df is pandas DataFrame
         pd_df = reader.to_pandas()
 
@@ -70,8 +70,6 @@ def get_odps_sql_result_as_df(sql) -> pd.DataFrame:
 
 
 def add_new_column_to_table(table_name, column_name):
-    if not "summerfarm_ds." in table_name:
-        table_name = f"summerfarm_ds.{table_name}"
     sql = f"ALTER TABLE {table_name} ADD COLUMNS ({column_name} STRING);"
     instance = odps.execute_sql(sql)
     instance.wait_for_success()
@@ -79,8 +77,6 @@ def add_new_column_to_table(table_name, column_name):
 
 
 def ensure_all_df_columns_in_odps_table(df, table_name):
-    if not "summerfarm_ds." in table_name:
-        table_name = f"summerfarm_ds.{table_name}"
     if not odps.exist_table(table_name):
         logging.info(f"表不存在:{table_name}")
         return True
@@ -103,7 +99,7 @@ def write_pandas_df_into_odps(df, table_name, partition_spec, overwrite=False) -
         logging.info(f"数据DF为空, table:{table_name}")
         return False
     time_of_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    df["spider_fetch_time"] = time_of_now
+    df["create_time"] = time_of_now
     ensure_all_df_columns_in_odps_table(df, table_name)
     exception = None
     for attemp in range(5):
