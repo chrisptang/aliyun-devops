@@ -1,5 +1,5 @@
 import os
-from typing import List
+import traceback
 
 from alibabacloud_sls20201230.client import Client as Sls20201230Client
 from alibabacloud_tea_openapi import models as open_api_models
@@ -74,7 +74,6 @@ def get_sls_data_by_query(
 
     sls_query_data = []
     try:
-        # 复制代码运行请自行打印 API 的返回值
         response = sls_client.get_logs_v2with_options(
             project=project,
             logstore=logstore,
@@ -85,7 +84,5 @@ def get_sls_data_by_query(
         sls_query_data = response.body.data
         print(f">=====数条数:{len(sls_query_data)}")
     except Exception as error:
-        # 此处仅做打印展示，请谨慎对待异常处理，在工程项目中切勿直接忽略异常。
-        # 错误 message
-        print(f"查询SLS失败了:{error}")
+        print(f"sql:{query}, 查询SLS失败了:{error}:{traceback.format_exc()}")
     return pd.DataFrame(sls_query_data)

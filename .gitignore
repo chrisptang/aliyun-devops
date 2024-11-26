@@ -8,3 +8,5 @@ app.log
 .venv/
 .vscode/
 商城价格展示优化AB实验结果_*
+.aider*
+.env
