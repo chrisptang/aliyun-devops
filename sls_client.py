@@ -95,7 +95,7 @@ def get_sls_raw_data_by_query(
     project: str = "xianmu-front-end-log",
     logstore: str = "xm-mall",
     retry_time: int = 1,
-    line: int = 100,
+    line: int = 1000,
     offset: int = 0,
 ) -> pd.DataFrame:
     if retry_time < 0:
