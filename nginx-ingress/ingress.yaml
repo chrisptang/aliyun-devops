@@ -3,7 +3,7 @@ kind: Ingress
 metadata:
   name: flask-app-ingress
   annotations:
-    nginx.ingress.kubernetes.io/upstream-hash-by: "$http_user_agent"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "${http_user_agent}_${remote_addr}"
 spec:
   ingressClassName: nginx
   rules:
