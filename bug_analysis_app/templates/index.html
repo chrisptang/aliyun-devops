@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Analysis App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Bug Analysis</h1>
+        <form method="POST">
+            <label for="question">Enter your question:</label>
+            <textarea id="question" name="question" rows="4" required></textarea>
+            <button type="submit">Submit</button>
+        </form>
+
+        {% if question %}
+            <h2>Your Question:</h2>
+            <p>{{ question }}</p>
+
+            <h2>Answer:</h2>
+            <p>{{ answer }}</p>
+
+            <h2>References:</h2>
+            <ul>
+                {% for reference in references %}
+                    <li>{{ reference }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+</body>
+</html>
