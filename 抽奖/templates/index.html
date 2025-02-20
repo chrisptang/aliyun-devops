@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>鲜沐抽奖系统</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* Apple-like font stack */
+            text-align: center;
+            background-image: url('https://azure.summerfarm.net/website/h5/ip6-1-logo.png'); /* User provided background image */
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-color: rgba(240, 240, 240, 0.8); /* Light gray background with opacity */
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            backdrop-filter: blur(5px); /* Apply blur effect */
+        }
+        h1 {
+            font-size: 2.5em;
+            font-weight: 600; /* Semi-bold */
+            margin-bottom: 20px;
+            color: #333;
+        }
+        h2 {
+            font-size: 1.8em;
+            font-weight: 500; /* Medium */
+            margin-top: 30px;
+            margin-bottom: 15px;
+            color: #555;
+        }
+        #candidate-list {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px; /* Increased margin */
+        }
+        .candidate-item {
+            font-size: 1.4em; /* Slightly larger font */
+            margin: 5px 15px; /* Adjusted spacing */
+            color: #444;
+        }
+        #candidate-names {
+            height: 150px; /* Reduced height */
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 20px;
+            display:none;
+        }
+        #names-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+        #winner-name {
+            font-size: 3.5em; /* Increased winner font size */
+            font-weight: 700; /* Bold winner name */
+            margin-top: 30px;
+            margin-bottom: 40px;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            color: #007bff; /* Blue accent color for winners */
+        }
+        #winner-name span {
+            margin: 0 15px; /* Adjusted winner spacing */
+        }
+        .button-container button {
+            padding: 12px 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+            color: #333;
+            transition: background-color 0.3s ease;
+        }
+        .button-container button:hover {
+            background-color: #e0e0e0;
+        }
+        .input-container {
+            margin-bottom: 20px;
+        }
+        .input-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        .input-container input[type="number"] {
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            width: 100px; /* Fixed width for input */
+        }
+
+
+        .message {
+            color: green;
+            margin-bottom: 10px;
+        }
+        .error {
+            color: red;
+            margin-bottom: 10px;
+        }
+        ul {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>鲜沐抽奖系统</h1>
+    <div class="error" id="file-error"></div>
+    <div class="error">{{ error }}</div>
+
+    <div class="error" id="wordcloud-error"></div>
+
+    {% if names %}
+    <h2>抽奖名单</h2>
+    <div id="candidate-list">
+        <!-- Names will be dynamically added here -->
+    </div>
+    {% endif %}
+
+    <div class="input-container">
+        <label for="num_winners">中奖人数 (默认 1):</label>
+        <input type="number" id="num_winners" name="num_winners" value="1" min="1">
+    </div>
+
+        <div class="button-container" id="action-buttons" style="display:block;">
+            <button id="start-pause-button">开始抽奖</button>
+        </div>
+
+    <div id="candidate-names">
+        <div id="names-container"></div>
+    </div>
+    <div id="winner-name"></div>
+
+    <script>
+        const startPauseButton = document.getElementById('start-pause-button');
+        const candidateNamesDiv = document.getElementById('candidate-names');
+        const namesContainer = document.getElementById('names-container');
+        const winnerNameDiv = document.getElementById('winner-name');
+        const actionButtonsDiv = document.getElementById('action-buttons');
+        const fileErrorDiv = document.getElementById('file-error');
+        const wordCloudErrorDiv = document.getElementById('wordcloud-error');
+
+        let names = [];
+        let animationInterval;
+        let drawing = false;
+        let numWinnersInput = document.getElementById('num_winners');
+        let allNames = [];
+
+        actionButtonsDiv.style.display = 'block';
+
+        startPauseButton.addEventListener('click', function() {
+            if (!drawing) {
+                startDrawing();
+                startPauseButton.textContent = '暂停/揭晓'; // Change button text to "暂停/揭晓"
+                drawing = true;
+            } else {
+                pauseDrawing();
+                startPauseButton.textContent = '开始抽奖'; // Change button text back to "开始抽奖"
+                drawing = false;
+            }
+        });
+
+        function startDrawing() {
+            drawing = true;
+            winnerNameDiv.textContent = '';
+            candidateListDiv.innerHTML = '';
+            candidateNamesDiv.style.display = 'block';
+            candidateNamesDiv.style.overflow = 'hidden';
+
+
+            fetch('/draw', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    num_winners: numWinnersInput.value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    fileErrorDiv.textContent = data.error;
+                    drawing = false;
+                    startButton.disabled = false;
+                    pauseButton.disabled = true;
+                } else {
+                    allNames = data.names;
+                    names = data.winners;
+                    startNameAnimation();
+                }
+            });
+        }
+
+
+        const candidateListDiv = document.getElementById('candidate-list');
+        function displayCandidateList(names) {
+            candidateListDiv.innerHTML = ''; // Clear existing list
+            names.forEach(name => {
+                const nameSpan = document.createElement('span');
+                nameSpan.classList.add('candidate-item');
+                nameSpan.textContent = name;
+                candidateListDiv.appendChild(nameSpan);
+            });
+        }
+
+
+        function displayCandidateNames() {
+            namesContainer.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                allNames.sort(() => Math.random() - 0.5).slice(0, 5).forEach(name => {
+                    const nameDiv = document.createElement('div');
+                    nameDiv.classList.add('candidate-name');
+                    nameDiv.textContent = name;
+                    namesContainer.appendChild(nameDiv);
+                });
+            }
+        }
+
+
+        function startNameAnimation() {
+            let topPosition = 0;
+            animationInterval = setInterval(() => {
+                displayCandidateNames();
+                topPosition -= 5;
+                namesContainer.style.top = topPosition + 'px';
+
+                if (topPosition <= -(namesContainer.offsetHeight - candidateNamesDiv.offsetHeight)) {
+                    topPosition = 0;
+                }
+            }, 50); // Changed interval to 50ms
+        }
+
+
+        // Initial display of candidate list on page load
+        document.addEventListener('DOMContentLoaded', (event) => {
+            fetch('/')
+            .then(response => response.text())
+            .then(html => {
+                const tempElement = document.createElement('div');
+                tempElement.innerHTML = html;
+                const initialNames = Array.from(tempElement.querySelectorAll('#candidate-list .candidate-item')).map(el => el.textContent);
+                displayCandidateList(initialNames);
+            });
+        });
+
+        function pauseDrawing() {
+            drawing = false;
+            clearInterval(animationInterval);
+            candidateNamesDiv.style.overflow = 'visible';
+            namesContainer.innerHTML = '';
+
+            winnerNameDiv.innerHTML = '';
+            const numWinners = parseInt(numWinnersInput.value, 10) || 1;
+            const winnersToShow = names.slice(0, numWinners);
+
+            winnersToShow.forEach(winner => {
+                const winnerSpan = document.createElement('span');
+                winnerSpan.textContent = winner;
+                winnerNameDiv.appendChild(winnerSpan);
+            });
+        }
+    </script>
+</body>
+</html>

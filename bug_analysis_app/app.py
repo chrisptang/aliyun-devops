@@ -16,7 +16,9 @@ import logging
 import time
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 app = Flask(__name__)
 
@@ -36,6 +38,7 @@ project_id = "0c593b861aafc8b8546d67dd65"
 chroma_client = chromadb.HttpClient(host="localhost", port=8000)
 collection = chroma_client.get_or_create_collection(name="docs")
 
+
 # Azure Embedding Function (from the original notebook)
 def get_azure_embeddings(texts):
     logging.info(f"Fetching embeddings from Azure for {len(texts)} texts.")
@@ -48,6 +51,7 @@ def get_azure_embeddings(texts):
     response = requests.post(url, headers=headers, json=data, timeout=15)
     response.raise_for_status()  # Raise an exception for bad status codes
     return [item["embedding"] for item in response.json()["data"]]
+
 
 # Function to get work item info (from the original notebook)
 def get_work_item_info(workitem_id, organization_id):
@@ -67,11 +71,13 @@ def get_work_item_info(workitem_id, organization_id):
                 logging.error("Max retries reached. Failing.")
                 raise
 
+
 # Function to clean HTML (from the original notebook)
 def get_clean_text_from_html(html_content):
     soup = BeautifulSoup(html_content, "html.parser")
     clean_text = soup.get_text(strip=True)
     return clean_text
+
 
 # Function to fetch and process workitems (adapted from the original notebook)
 def fetch_and_process_workitems():
@@ -109,7 +115,7 @@ def fetch_and_process_workitems():
                 break
         except Exception as e:
             logging.error(f"Error fetching workitems: {e}")
-            return [] # Return empty list on error
+            return []  # Return empty list on error
 
     work_item_info_list = []
     for item in items_array:
@@ -121,8 +127,8 @@ def fetch_and_process_workitems():
             workitem["comments"] = comments
             work_item_info_list.append(workitem)
         except Exception as e:
-             logging.error(f"Error getting workitem details or comments: {e}")
-             # Continue to the next item even if one fails
+            logging.error(f"Error getting workitem details or comments: {e}")
+            # Continue to the next item even if one fails
 
     documents = []
     for item in work_item_info_list:
@@ -149,6 +155,7 @@ def fetch_and_process_workitems():
         )
     return documents
 
+
 # Function to add documents to ChromaDB (adapted from original notebook)
 def add_documents_to_chromadb(documents):
     logging.info("Adding documents to ChromaDB...")
@@ -156,15 +163,16 @@ def add_documents_to_chromadb(documents):
     for i in range(0, len(documents), batch_size):
         batch_docs = documents[i : i + batch_size]
         try:
-          batch_embeddings = get_azure_embeddings(batch_docs)
-          collection.add(
-              ids=[str(i + j) for j in range(len(batch_docs))],
-              embeddings=batch_embeddings,
-              documents=batch_docs,
-          )
+            batch_embeddings = get_azure_embeddings(batch_docs)
+            collection.add(
+                ids=[str(i + j) for j in range(len(batch_docs))],
+                embeddings=batch_embeddings,
+                documents=batch_docs,
+            )
         except Exception as e:
             logging.error(f"Error adding batch to chromadb: {e}")
             # Decide if you want to continue or stop on error. Here, we continue.
+
 
 # Function to perform RAG (adapted from the original notebook)
 def perform_rag(prompt):
@@ -210,34 +218,42 @@ def perform_rag(prompt):
             ],
         )
         answer = completion.choices[0].message.content
-        return answer, results["documents"][0] # Return answer and source documents
+        return answer, results["documents"][0]  # Return answer and source documents
 
     except Exception as e:
         logging.error(f"Error during RAG: {e}")
         return "An error occurred while processing your request.", []
 
-# --- Flask Routes ---
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    if request.method == 'POST':
-        question = request.form['question']
-        answer, references = perform_rag(question)
-        return render_template('index.html', question=question, answer=answer, references=references)
-    return render_template('index.html')
 
-@app.route('/refresh_data', methods=['POST',"GET"])
+# --- Flask Routes ---
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        question = request.form["question"]
+        answer_markdown, references = perform_rag(question)
+        print(f"answer_markdown:{answer_markdown}")
+        return render_template(
+            "index.html", question=question, answer=answer_markdown, references=references
+        )
+    return render_template("index.html")
+
+
+@app.route("/refresh_data", methods=["POST", "GET"])
 def refresh_data():
     """Endpoint to manually refresh data from the API."""
     try:
         documents = fetch_and_process_workitems()
         if documents:
-          add_documents_to_chromadb(documents)
-          return jsonify({'status': 'success', 'message': 'Data refreshed successfully!'})
+            add_documents_to_chromadb(documents)
+            return jsonify(
+                {"status": "success", "message": "Data refreshed successfully!"}
+            )
         else:
-          return jsonify({'status': 'error', 'message': 'Failed to fetch data.'}), 500
+            return jsonify({"status": "error", "message": "Failed to fetch data."}), 500
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # Removed data loading on startup
-    app.run(debug=True)
+    app.run(debug=True, port=5400)

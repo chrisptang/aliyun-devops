@@ -1,15 +1,16 @@
 body {
-    font-family: sans-serif;
+    font-family: -apple-system, sans-serif;
     margin: 0;
     padding: 0;
     background-color: #f4f4f4;
+    color: #1d1d1f; /* Apple's near-black text color */
 }
 
 .container {
     max-width: 800px;
     margin: 20px auto;
     padding: 20px;
-    background-color: #fff;
+    background-color: #fff; /* White background */
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
@@ -37,7 +38,7 @@ textarea {
 }
 
 button {
-    background-color: #4CAF50;
+    background-color: #007aff; /* Apple blue */
     color: white;
     padding: 10px 20px;
     border: none;
@@ -46,7 +47,7 @@ button {
 }
 
 button:hover {
-    background-color: #45a049;
+    background-color: #0066cc; /* Slightly darker blue on hover */
 }
 
 ul {
@@ -56,6 +57,20 @@ ul {
 
 li {
     margin-bottom: 5px;
+}
+
+/* Basic Markdown Styles */
+h2 {
+  font-size: 1.5em;
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+  border-bottom: 1px solid #ddd;
+}
+
+h3 {
+    font-size: 1.2em;
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
 }
 
 /* Mobile responsiveness */

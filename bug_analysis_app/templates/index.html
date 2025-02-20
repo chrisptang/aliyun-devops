@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bug Analysis App</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -20,7 +21,16 @@
             <p>{{ question }}</p>
 
             <h2>Answer:</h2>
-            <p>{{ answer }}</p>
+            <div id="answer"></div>
+            <textarea id="answer_markdown_holder" style="display: none;">{{ answer|safe }}</textarea>
+            <script>
+              var md = window.markdownit();
+              var answer_markdown = document.getElementById('answer_markdown_holder').value;
+              console.log(answer_markdown);
+              var result = md.render(answer_markdown);
+              document.getElementById('answer').innerHTML = result;
+            </script>
+            <p style="display:none;">{{ answer|safe }}</p>
 
             <h2>References:</h2>
             <ul>
