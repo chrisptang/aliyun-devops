@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>年会抽奖系统</title>
+    <style>
+        :root {
+            --primary-color: #e74c3c;
+            --secondary-color: #f1c40f;
+            --dark-color: #c0392b;
+            --light-color: #f9f9f9;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            color: #333;
+        }
+        
+        h1 {
+            font-size: 3em;
+            margin: 20px 0;
+            color: var(--primary-color);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .input-group {
+            margin: 15px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .input-group label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .input-group input, .input-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.2em;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            background-color: var(--dark-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        #lottery-display {
+            height: 200px;
+            overflow: hidden;
+            position: relative;
+            background: var(--light-color);
+            border-radius: 5px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #name-scroller {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            font-size: 4em;
+            font-weight: bold;
+            color: var(--primary-color);
+            transition: transform 0.1s;
+        }
+        
+        #winner-display {
+            font-size: 3em;
+            font-weight: bold;
+            color: var(--secondary-color);
+            margin: 20px 0;
+            min-height: 80px;
+        }
+        
+        .winner-name {
+            display: inline-block;
+            margin: 0 10px;
+            animation: glow 1.5s infinite alternate;
+        }
+        
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px var(--secondary-color), 0 0 20px var(--secondary-color);
+            }
+            to {
+                text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px var(--secondary-color), 0 0 40px var(--secondary-color);
+            }
+        }
+        
+        #remaining-count {
+            font-size: 1.2em;
+            margin: 10px 0;
+            color: var(--dark-color);
+        }
+        
+        #history-panel {
+            text-align: left;
+        }
+        
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .history-prize {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .history-winner {
+            margin-left: 10px;
+        }
+        
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+            
+            #name-scroller, #winner-display {
+                font-size: 2em;
+            }
+            
+            .input-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 年会抽奖系统 🎉</h1>
+        
+        <div class="panel">
+            <h2>抽奖设置</h2>
+            <div class="input-group">
+                <label for="prize_name">奖项名称:</label>
+                <input type="text" id="prize_name" value="一等奖" list="prize-types">
+                <datalist id="prize-types">
+                    <option value="特等奖">
+                    <option value="一等奖">
+                    <option value="二等奖">
+                    <option value="三等奖">
+                    <option value="幸运奖">
+                </datalist>
+            </div>
+            <div class="input-group">
+                <label for="num_winners">获奖人数:</label>
+                <input type="number" id="num_winners" min="1" value="1">
+            </div>
+            <div id="remaining-count">剩余候选人: <span id="remaining-num">{{ remaining }}</span> 人</div>
+        </div>
+        
+        <div class="panel">
+            <h2>抽奖区</h2>
+            <div id="lottery-display">
+                <div id="name-scroller">点击开始抽奖</div>
+            </div>
+            <div id="winner-display"></div>
+            <button id="start-button">开始抽奖</button>
+            <button id="reset-button">重置抽奖</button>
+            <div id="error-message" class="error"></div>
+        </div>
+        
+        <div class="panel" id="history-panel">
+            <h2>抽奖历史</h2>
+            <div id="history-list">
+                {% for item in history %}
+                <div class="history-item">
+                    <span class="history-prize">{{ item.prize }}</span>
+                    <span class="history-time">{{ item.time }}</span>
+                    <div class="history-winner">
+                        {% for winner in item.winners %}
+                        <span>{{ winner }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const startButton = document.getElementById('start-button');
+        const resetButton = document.getElementById('reset-button');
+        const nameScroller = document.getElementById('name-scroller');
+        const winnerDisplay = document.getElementById('winner-display');
+        const errorMessage = document.getElementById('error-message');
+        const remainingNum = document.getElementById('remaining-num');
+        const historyList = document.getElementById('history-list');
+        
+        let isDrawing = false;
+        let animationInterval;
+        let animationSpeed = 50;
+        let speedIncrease = 1.1;
+        let currentSpeed = animationSpeed;
+        let allNames = [];
+        let remainingNames = [];
+        
+        startButton.addEventListener('click', toggleDrawing);
+        resetButton.addEventListener('click', resetLottery);
+        
+        function toggleDrawing() {
+            if (isDrawing) {
+                stopDrawing();
+            } else {
+                startDrawing();
+            }
+        }
+        
+        function startDrawing() {
+            const prizeName = document.getElementById('prize_name').value;
+            const numWinners = parseInt(document.getElementById('num_winners').value);
+            
+            fetch('/draw', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    prize_name: prizeName,
+                    num_winners: numWinners
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    errorMessage.textContent = data.error;
+                    return;
+                }
+                
+                isDrawing = true;
+                startButton.textContent = '停止抽奖';
+                winnerDisplay.innerHTML = '';
+                errorMessage.textContent = '';
+                
+                allNames = data.all_names;
+                remainingNames = data.remaining;
+                remainingNum.textContent = remainingNames.length;
+                
+                // Start animation
+                currentSpeed = animationSpeed;
+                animateNames();
+                
+                // Gradually increase speed
+                const speedInterval = setInterval(() => {
+                    currentSpeed = Math.max(10, currentSpeed / speedIncrease);
+                    if (!isDrawing) {
+                        clearInterval(speedInterval);
+                    }
+                }, 200);
+            });
+        }
+        
+        function animateNames() {
+            clearInterval(animationInterval);
+            animationInterval = setInterval(() => {
+                const randomIndex = Math.floor(Math.random() * allNames.length);
+                nameScroller.textContent = allNames[randomIndex];
+                nameScroller.style.transform = `translateY(${Math.random() * 20 - 10}px)`;
+            }, currentSpeed);
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+            clearInterval(animationInterval);
+            startButton.textContent = '开始抽奖';
+            
+            // Get updated data from server
+            fetch('/')
+                .then(response => response.json())
+                .then(data => {
+                    // Update remaining count
+                    remainingNum.textContent = data.remaining;
+                    
+                    // Display current winners
+                    winnerDisplay.innerHTML = '';
+                    if (data.current_winners) {
+                        data.current_winners.forEach(winner => {
+                            const winnerSpan = document.createElement('span');
+                            winnerSpan.className = 'winner-name';
+                            winnerSpan.textContent = winner;
+                            winnerDisplay.appendChild(winnerSpan);
+                        });
+                    }
+                    
+                    // Update history list
+                    historyList.innerHTML = '';
+                    if (data.history) {
+                        data.history.forEach(item => {
+                            const historyItem = document.createElement('div');
+                            historyItem.className = 'history-item';
+                            
+                            const prizeSpan = document.createElement('span');
+                            prizeSpan.className = 'history-prize';
+                            prizeSpan.textContent = item.prize;
+                            
+                            const timeSpan = document.createElement('span');
+                            timeSpan.className = 'history-time';
+                            timeSpan.textContent = item.time;
+                            
+                            const winnersDiv = document.createElement('div');
+                            winnersDiv.className = 'history-winner';
+                            item.winners.forEach(winner => {
+                                const winnerSpan = document.createElement('span');
+                                winnerSpan.textContent = winner;
+                                winnersDiv.appendChild(winnerSpan);
+                            });
+                            
+                            historyItem.appendChild(prizeSpan);
+                            historyItem.appendChild(timeSpan);
+                            historyItem.appendChild(winnersDiv);
+                            historyList.appendChild(historyItem);
+                        });
+                    }
+                });
+        }
+        
+        function resetLottery() {
+            fetch('/reset', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            });
+        }
+        
+        // Initialize
+        remainingNum.textContent = document.getElementById('remaining-num').textContent;
+    </script>
+</body>
+</html>
