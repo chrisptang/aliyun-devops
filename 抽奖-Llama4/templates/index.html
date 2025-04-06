@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>年会抽奖系统</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>年会抽奖系统</h1>
+        
+        <div class="lottery-area">
+            <div id="result-display" class="result-display">
+                <div id="name-display">准备开始</div>
+                <div id="prize-display"></div>
+            </div>
+            <button id="start-btn" class="btn start-btn">开始抽奖</button>
+        </div>
+
+        <div class="settings-panel">
+            <h2>奖项设置</h2>
+            <div class="form-group">
+                <label for="prize-name">奖项名称:</label>
+                <input type="text" id="prize-name" placeholder="例如: 一等奖">
+            </div>
+            <div class="form-group">
+                <label for="winner-count">获奖人数:</label>
+                <input type="number" id="winner-count" min="1" value="1">
+            </div>
+        </div>
+
+        <div class="candidate-info">
+            <h2>候选人信息</h2>
+            <div class="stats">
+                <p>剩余候选人: <span id="remaining-count">20</span>人</p>
+            </div>
+            <div class="candidate-list">
+                <h3>候选人名单</h3>
+                <textarea id="candidates-text" rows="5"></textarea>
+                <button id="load-default-btn" class="btn">加载默认名单</button>
+                <button id="update-btn" class="btn">更新名单</button>
+            </div>
+        </div>
+
+        <div class="results-panel">
+            <h2>获奖记录</h2>
+            <div id="winners-list"></div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

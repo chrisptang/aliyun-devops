@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>年会抽奖系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>年会抽奖系统</h1>
+            <div class="status">
+                <span id="remaining-count">剩余参与者: 加载中...</span>
+            </div>
+        </header>
+
+        <div class="lottery-area">
+            <div class="prize-info">
+                <div class="prize-name" id="current-prize">准备开始</div>
+            </div>
+            
+            <div class="draw-area">
+                <div class="name-display" id="name-display">
+                    <div class="name-roll" id="name-roll"></div>
+                    <div class="winners" id="winners"></div>
+                </div>
+                <button id="draw-btn" class="btn primary-btn">开始抽奖</button>
+            </div>
+        </div>
+
+        <div class="settings-area">
+            <div class="settings-panel">
+                <h2>抽奖设置</h2>
+                <div class="form-group">
+                    <label for="prize-name">奖项名称:</label>
+                    <input type="text" id="prize-name" value="一等奖">
+                </div>
+                <div class="form-group">
+                    <label for="winner-count">获奖人数:</label>
+                    <input type="number" id="winner-count" min="1" value="1">
+                </div>
+                <button id="settings-btn" class="btn">高级设置</button>
+            </div>
+            
+            <div class="history-panel">
+                <h2>中奖记录</h2>
+                <div id="history-list" class="history-list">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 候选人设置弹窗 -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <span class="close-btn" id="close-modal">&times;</span>
+            <h2>高级设置</h2>
+            
+            <div class="tab-container">
+                <div class="tab-header">
+                    <div class="tab active" data-tab="candidates">候选人名单</div>
+                    <div class="tab" data-tab="system">系统设置</div>
+                </div>
+                
+                <div class="tab-content">
+                    <div class="tab-pane active" id="candidates-pane">
+                        <p>每行输入一个候选人姓名:</p>
+                        <textarea id="candidates-list" rows="10"></textarea>
+                        <div class="button-group">
+                            <button id="save-candidates" class="btn primary-btn">保存名单</button>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane" id="system-pane">
+                        <div class="form-group">
+                            <button id="reset-winners" class="btn warning-btn">重置中奖记录</button>
+                            <p class="hint">重置后，所有人将重新参与抽奖</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

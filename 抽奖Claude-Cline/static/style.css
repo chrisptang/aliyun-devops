@@ -1,0 +1,549 @@
+/* 全局样式 */
+:root {
+    --primary-color: #e60012;
+    --secondary-color: #ffcc00;
+    --accent-color: #ffd700;
+    --text-color: #333;
+    --light-text: #fff;
+    --background-color: #f8f8f8;
+    --border-color: #ddd;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--text-color);
+    background-color: var(--background-color);
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f8f8f8"/><path d="M0,0L100,100M100,0L0,100" stroke="%23f0f0f0" stroke-width="1"/></svg>');
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 头部样式 */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--primary-color), #ff6b6b);
+    color: var(--light-text);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+}
+
+header::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="3" fill="%23ffffff22"/></svg>');
+    animation: rotate 30s linear infinite;
+    z-index: 0;
+}
+
+@keyframes rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+h1 {
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 1;
+}
+
+/* 标签页样式 */
+.tabs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 5px;
+    color: var(--light-text);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.tab-btn:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.tab-btn.active {
+    background-color: rgba(255, 255, 255, 0.4);
+    font-weight: bold;
+}
+
+/* 主要内容区域 */
+main {
+    flex: 1;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.tab-content {
+    display: none;
+    padding: 30px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* 抽奖界面样式 */
+.lottery-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.prize-selector {
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 20px;
+}
+
+.prize-selector label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.prize-selector select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 1rem;
+}
+
+.lottery-display {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.lottery-animation {
+    width: 100%;
+    max-width: 600px;
+    height: 200px;
+    background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.lottery-animation::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="2" fill="%23ffffff22"/></svg>');
+    opacity: 0.5;
+}
+
+.name-display {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--light-text);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    transition: transform 0.1s ease;
+    z-index: 1;
+}
+
+.winner-display {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.winner-item {
+    background-color: var(--accent-color);
+    color: var(--text-color);
+    padding: 10px 15px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: var(--shadow);
+    animation: pop-in 0.5s ease;
+}
+
+@keyframes pop-in {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    70% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.winner-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.winner-prize {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.lottery-info {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 20px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #f9f9f9;
+    padding: 10px 15px;
+    border-radius: 5px;
+    box-shadow: var(--shadow);
+    min-width: 120px;
+}
+
+.info-item span:first-child {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.info-item span:last-child {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.lottery-controls {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+/* 按钮样式 */
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: var(--shadow);
+}
+
+.primary-btn {
+    background-color: var(--primary-color);
+    color: var(--light-text);
+}
+
+.primary-btn:hover {
+    background-color: #d40010;
+}
+
+.secondary-btn {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+}
+
+.secondary-btn:hover {
+    background-color: #e6b800;
+}
+
+.danger-btn {
+    background-color: var(--danger-color);
+    color: var(--light-text);
+}
+
+.danger-btn:hover {
+    background-color: #c82333;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 设置界面样式 */
+.settings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.settings-section {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+}
+
+.settings-section h2 {
+    margin-bottom: 20px;
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.prize-settings, .candidates-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.prizes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.prize-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.prize-inputs {
+    display: flex;
+    gap: 10px;
+    flex: 1;
+}
+
+.prize-inputs input {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.prize-name {
+    flex: 2;
+}
+
+.prize-count {
+    flex: 1;
+    max-width: 80px;
+}
+
+.remove-prize-btn {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+#candidates-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.settings-controls {
+    display: flex;
+    gap: 10px;
+}
+
+/* 历史记录界面样式 */
+.history-container {
+    padding: 20px;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.history-prize {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.history-winner {
+    font-weight: bold;
+}
+
+.history-time {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.empty-message {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+    font-style: italic;
+}
+
+/* 页脚样式 */
+footer {
+    text-align: center;
+    margin-top: 30px;
+    padding: 20px;
+    color: #666;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .tab-content {
+        padding: 20px;
+    }
+    
+    h1 {
+        font-size: 2rem;
+    }
+    
+    .name-display {
+        font-size: 2.5rem;
+    }
+    
+    .lottery-info {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .info-item {
+        width: 100%;
+    }
+    
+    .lottery-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+    
+    .prize-inputs {
+        flex-direction: column;
+    }
+    
+    .prize-count {
+        max-width: none;
+    }
+    
+    .history-item {
+        flex-direction: column;
+        gap: 5px;
+    }
+}
+
+/* 动画效果 */
+@keyframes highlight {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(230, 0, 18, 0.4);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px rgba(230, 0, 18, 0.6);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(230, 0, 18, 0.4);
+    }
+}
+
+.highlight {
+    animation: highlight 1s ease infinite;
+}
+
+/* 中奖动画 */
+@keyframes winner-animation {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.winner-animation {
+    background: linear-gradient(270deg, #ff9a9e, #fad0c4, #ffecd2, #fcb69f);
+    background-size: 800% 800%;
+    animation: winner-animation 2s ease infinite;
+}
