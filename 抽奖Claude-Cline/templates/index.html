@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>年会抽奖系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>年会抽奖系统</h1>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="main">抽奖界面</button>
+                <button class="tab-btn" data-tab="settings">设置</button>
+                <button class="tab-btn" data-tab="history">历史记录</button>
+            </div>
+        </header>
+
+        <main>
+            <!-- 主抽奖界面 -->
+            <section id="main" class="tab-content active">
+                <div class="lottery-container">
+                    <div class="prize-selector">
+                        <label for="prize-select">选择奖项:</label>
+                        <select id="prize-select"></select>
+                    </div>
+                    
+                    <div class="lottery-display">
+                        <div class="lottery-animation" id="lottery-animation">
+                            <div class="name-display">点击开始抽奖</div>
+                        </div>
+                        <div class="winner-display" id="winner-display"></div>
+                    </div>
+                    
+                    <div class="lottery-info">
+                        <div class="info-item">
+                            <span>当前奖项:</span>
+                            <span id="current-prize">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span>剩余名额:</span>
+                            <span id="remaining-count">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span>候选人数:</span>
+                            <span id="candidate-count">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="lottery-controls">
+                        <button id="start-btn" class="btn primary-btn">开始抽奖</button>
+                        <button id="stop-btn" class="btn secondary-btn" disabled>停止</button>
+                        <button id="reset-btn" class="btn danger-btn">重置抽奖</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 设置界面 -->
+            <section id="settings" class="tab-content">
+                <div class="settings-container">
+                    <div class="settings-section">
+                        <h2>奖项设置</h2>
+                        <div class="prize-settings">
+                            <div id="prizes-list"></div>
+                            <button id="add-prize-btn" class="btn secondary-btn">添加奖项</button>
+                            <button id="save-prizes-btn" class="btn primary-btn">保存奖项设置</button>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h2>候选人设置</h2>
+                        <div class="candidates-settings">
+                            <textarea id="candidates-input" rows="10" placeholder="每行输入一个候选人姓名"></textarea>
+                            <div class="settings-controls">
+                                <button id="save-candidates-btn" class="btn primary-btn">保存候选人</button>
+                                <button id="reset-candidates-btn" class="btn secondary-btn">恢复默认名单</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 历史记录界面 -->
+            <section id="history" class="tab-content">
+                <div class="history-container">
+                    <h2>抽奖历史记录</h2>
+                    <div class="history-list" id="history-list">
+                        <div class="empty-message">暂无抽奖记录</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>年会抽奖系统 &copy; 2025</p>
+        </footer>
+    </div>
+
+    <!-- 模板 -->
+    <template id="prize-item-template">
+        <div class="prize-item">
+            <div class="prize-inputs">
+                <input type="text" class="prize-name" placeholder="奖项名称">
+                <input type="number" class="prize-count" min="1" placeholder="人数">
+            </div>
+            <button class="remove-prize-btn">删除</button>
+        </div>
+    </template>
+
+    <template id="history-item-template">
+        <div class="history-item">
+            <div class="history-prize"></div>
+            <div class="history-winner"></div>
+            <div class="history-time"></div>
+        </div>
+    </template>
+
+    <template id="winner-item-template">
+        <div class="winner-item">
+            <div class="winner-name"></div>
+            <div class="winner-prize"></div>
+        </div>
+    </template>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

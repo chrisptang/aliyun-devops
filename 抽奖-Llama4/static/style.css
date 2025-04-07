@@ -1,0 +1,165 @@
+body {
+    font-family: 'Microsoft YaHei', sans-serif;
+    background-color: #e74c3c;
+    color: #fff;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1, h2, h3 {
+    text-align: center;
+    color: #f1c40f;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+h1 {
+    font-size: 3em;
+    margin-bottom: 30px;
+}
+
+.lottery-area {
+    background-color: #c0392b;
+    padding: 30px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.result-display {
+    background-color: #fff;
+    color: #e74c3c;
+    padding: 30px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#name-display {
+    font-size: 3em;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+#prize-display {
+    font-size: 1.5em;
+    color: #7f8c8d;
+}
+
+.btn {
+    background-color: #f1c40f;
+    color: #c0392b;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1.2em;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s;
+    margin: 5px;
+}
+
+.btn:hover {
+    background-color: #f39c12;
+    transform: scale(1.05);
+}
+
+.start-btn {
+    font-size: 1.5em;
+    padding: 15px 40px;
+}
+
+.settings-panel, .candidate-info, .results-panel {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"], 
+input[type="number"],
+textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    font-size: 1em;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.stats {
+    font-size: 1.2em;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+#winners-list {
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.winner-item {
+    padding: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+}
+
+.winner-item:last-child {
+    border-bottom: none;
+}
+
+.highlight {
+    animation: highlight 0.5s infinite alternate;
+}
+
+@keyframes highlight {
+    from {
+        color: #e74c3c;
+        text-shadow: 0 0 5px #fff;
+    }
+    to {
+        color: #f1c40f;
+        text-shadow: 0 0 20px #f1c40f;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    h1 {
+        font-size: 2em;
+    }
+    
+    #name-display {
+        font-size: 2em;
+    }
+}
