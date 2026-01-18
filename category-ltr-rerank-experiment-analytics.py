@@ -48,6 +48,29 @@ pd.set_option("display.max_colwidth", 100)  # 设置列最大宽度
 
 import sqlite3
 
+# ============================================================================
+# 全局matplotlib字体配置 - 支持中文显示（Mac系统优化）
+# ============================================================================
+import sys
+import matplotlib
+matplotlib.use('Agg')  # 使用非GUI后端，确保字体配置生效
+
+if sys.platform == 'darwin':
+    # Mac系统：使用系统内置字体（根据实际可用字体调整）
+    # 可用字体: Heiti TC, PingFang HK, STHeiti, Songti SC, Kaiti SC
+    matplotlib.rcParams['font.sans-serif'] = ['Heiti TC', 'PingFang HK', 'STHeiti', 'Songti SC', 'Kaiti SC', 'Arial Unicode MS']
+else:
+    # 其他系统（Windows/Linux）
+    matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans', 'Arial Unicode MS', 'Arial']
+
+# 统一配置
+matplotlib.rcParams['axes.unicode_minus'] = False
+matplotlib.rcParams['font.size'] = 11
+matplotlib.rcParams['figure.autolayout'] = True
+matplotlib.rcParams['font.family'] = 'sans-serif'
+
+import matplotlib.pyplot as plt
+
 
 def get_user_variant_of_date_from_sls(
     day: datetime, check_if_local_exist: bool = True
@@ -215,7 +238,6 @@ def get_user_sku_view_of_date_from_sls(
     db_file_name = f"./data/category_ltr_ab_user_sku_view.db"
     table_name = f"user_sku_view_{day.strftime('%Y%m%d')}"
     conn = sqlite3.connect(db_file_name)
-    cursor = conn.cursor()
 
     if check_if_local_exist:
         try:
@@ -386,7 +408,7 @@ user_sku_ctr_serial.head(5)
 
 import numpy as np
 from scipy import stats
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 from dataclasses import dataclass
 
 
@@ -520,7 +542,7 @@ def perform_ab_test(
     lift = (mean_variant - mean_control) / mean_control if mean_control != 0 else 0
 
     # t检验 (Welch's t-test，不假设方差相等)
-    t_stat, p_value = stats.ttest_ind(variant_data, control_data, equal_var=False)
+    _, p_value = stats.ttest_ind(variant_data, control_data, equal_var=False)
 
     # 效应量
     effect_size = calculate_cohens_d(variant_data, control_data)
@@ -648,7 +670,7 @@ def analyze_metric_by_variant(
         )
 
         # 非参数检验（Mann-Whitney）
-        mw_stat, mw_p = perform_mann_whitney_test(variant_data, control_data)
+        _, mw_p = perform_mann_whitney_test(variant_data, control_data)
 
         # Bootstrap置信区间
         variant_ci = calculate_bootstrap_ci(variant_data)
@@ -821,6 +843,166 @@ print(desc_stats_summary)
 print("\n📋 完整AB测试结果表:")
 print(ab_results_summary)
 
+
+# ============================================================================
+# 📊 AB测试结果可视化模块 - 详细指标对比
+# ============================================================================
+
+def create_ab_test_visualization(
+    desc_stats_df: pd.DataFrame,
+    ab_results_df: pd.DataFrame,
+    title_prefix: str = "分类页LTR重排序"
+):
+    """
+    创建AB测试结果的详细可视化图表
+    展示SKU曝光数、点击数、点击率、平均点击位置、加入购物车转化率等关键指标
+
+    Args:
+        desc_stats_df: 描述性统计DataFrame
+        ab_results_df: AB测试结果DataFrame
+        title_prefix: 图表标题前缀
+    """
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import numpy as np
+    import sys
+
+    # 先设置seaborn主题（会重置字体）
+    sns.set_theme(style="whitegrid", palette="husl")
+    sns.set_palette("husl")
+
+    # 然后重新设置中文字体（必须在sns.set_theme之后）
+    if sys.platform == 'darwin':
+        plt.rcParams['font.sans-serif'] = ['Heiti TC', 'PingFang HK', 'STHeiti', 'Songti SC', 'Kaiti SC', 'Arial Unicode MS']
+    else:
+        plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans', 'Arial Unicode MS', 'Arial']
+    plt.rcParams['axes.unicode_minus'] = False
+    plt.rcParams['font.size'] = 11
+    plt.rcParams['figure.autolayout'] = True
+    plt.rcParams['font.family'] = 'sans-serif'
+
+    # 获取所有指标
+    metrics = ab_results_df['指标'].unique()
+
+    # 为每个指标创建对比可视化
+    fig = plt.figure(figsize=(20, 14))
+    fig.suptitle(f'{title_prefix}AB实验详细指标对比 (V1/V3/V4 vs V2)',
+                 fontsize=18, fontweight='bold', y=0.995)
+
+    # 颜色方案
+    colors = {'V1': '#3498db', 'V2': '#e74c3c', 'V3': '#27ae60', 'V4': '#9b59b6'}
+
+    plot_idx = 1
+    for metric in sorted(metrics):
+        # 获取当前指标的描述性统计
+        metric_desc = desc_stats_df[desc_stats_df['指标'] == metric].copy()
+        metric_ab = ab_results_df[ab_results_df['指标'] == metric].copy()
+
+        if metric_desc.empty:
+            continue
+
+        # 子图1: 各分组均值对比
+        ax = fig.add_subplot(len(metrics), 3, plot_idx)
+        plot_idx += 1
+
+        variants = sorted(metric_desc['分组'].unique())
+        means = [metric_desc[metric_desc['分组'] == v]['均值'].values[0] for v in variants]
+        stds = [metric_desc[metric_desc['分组'] == v]['标准差'].values[0] for v in variants]
+
+        bars = ax.bar(variants, means, yerr=stds, capsize=5, alpha=0.8,
+                     color=[colors.get(v, '#95a5a6') for v in variants],
+                     edgecolor='black', linewidth=1.5)
+
+        # 添加数值标签
+        for bar, mean in zip(bars, means):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                   f'{mean:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+        ax.set_title(f'{metric} - 均值对比', fontsize=12, fontweight='bold')
+        ax.set_ylabel('均值', fontsize=10)
+        ax.set_ylim(0, max(means) * 1.25)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        # 子图2: 样本数对比
+        ax = fig.add_subplot(len(metrics), 3, plot_idx)
+        plot_idx += 1
+
+        sample_sizes = [metric_desc[metric_desc['分组'] == v]['样本数'].values[0] for v in variants]
+        bars = ax.bar(variants, sample_sizes, alpha=0.8,
+                     color=[colors.get(v, '#95a5a6') for v in variants],
+                     edgecolor='black', linewidth=1.5)
+
+        for bar, size in zip(bars, sample_sizes):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                   f'{int(size):,}', ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+        ax.set_title(f'{metric} - 样本数', fontsize=12, fontweight='bold')
+        ax.set_ylabel('样本数', fontsize=10)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        # 子图3: 提升度和显著性
+        ax = fig.add_subplot(len(metrics), 3, plot_idx)
+        plot_idx += 1
+
+        if not metric_ab.empty:
+            exp_variants = metric_ab['实验组'].values
+            lifts = [float(row['提升度(%)'].replace('%', '')) for _, row in metric_ab.iterrows()]
+            is_sig = [row['是否显著(α=0.05)'] == '是' for _, row in metric_ab.iterrows()]
+
+            # 按提升度大小排序
+            sorted_indices = np.argsort(lifts)[::-1]
+            exp_variants = exp_variants[sorted_indices]
+            lifts = np.array(lifts)[sorted_indices]
+            is_sig = np.array(is_sig)[sorted_indices]
+
+            # 根据显著性着色
+            bar_colors = ['#27ae60' if sig and lift > 0 else '#c0392b' if sig and lift < 0
+                         else '#f39c12' if not sig and lift > 0 else '#bdc3c7'
+                         for sig, lift in zip(is_sig, lifts)]
+
+            bars = ax.barh(exp_variants, lifts, alpha=0.85, color=bar_colors, edgecolor='black', linewidth=1.5)
+
+            # 添加数值和显著性标记
+            for bar, lift, sig in zip(bars, lifts, is_sig):
+                width = bar.get_width()
+                sig_mark = '*' if sig else ''  # 显著用*标记，不显著无标记
+                ax.text(width + (1 if width > 0 else -1), bar.get_y() + bar.get_height()/2.,
+                       f'{lift:+.2f}% {sig_mark}', ha='left' if width > 0 else 'right',
+                       va='center', fontsize=10, fontweight='bold')
+
+            ax.axvline(x=0, color='#e74c3c', linestyle='-', linewidth=2)
+            ax.set_title(f'{metric} - 提升度 (vs V2)', fontsize=12, fontweight='bold')
+            ax.set_xlabel('提升度 (%)', fontsize=10)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+
+    plt.tight_layout()
+    plt.savefig('./data/ab_test_metrics_comparison.png', dpi=150, bbox_inches='tight', facecolor='white')
+    print(f"\n✅ 详细指标对比图表已保存到: ./data/ab_test_metrics_comparison.png")
+    plt.show()
+
+
+# 执行可视化
+create_ab_test_visualization(desc_stats_summary, ab_results_summary,
+                            title_prefix=f"分类页LTR重排序 ({START_DATE})")
+
+
+# 将AB测试结果写入本地CSV文件
+# 获取数据的开始和结束日期
+data_start_date = all_user_variant_df['ds'].min() if not all_user_variant_df.empty else START_DATE.replace('-', '')
+data_end_date = all_user_variant_df['ds'].max() if not all_user_variant_df.empty else datetime.now().strftime('%Y%m%d')
+
+# 构建CSV文件名，包含开始和结束日期
+csv_filename = f"./data/ab_test_results_{data_start_date}_{data_end_date}.csv"
+
+# 写入CSV文件
+ab_results_summary.to_csv(csv_filename, index=False, encoding='utf-8-sig')
+print(f"\n✅ AB测试结果已保存到: {csv_filename}")
+
 if not args.upload_odps:
     print("未指定上传到ODPS，程序结束")
 
@@ -830,399 +1012,56 @@ if not args.upload_odps:
 
 
 if args.upload_odps:
-    from odps_client import get_odps_sql_result_as_df, write_pandas_df_into_odps
+    from odps_client import write_pandas_df_into_odps
     from datetime import datetime
+    import numpy as np
+
+    # 在上传ODPS前，清理所有列中的'null'字符串
+    df_to_upload = user_click_with_variant_statistics_df.copy()
+
+    print(f"📊 原始数据行数: {len(df_to_upload)}")
+    print(f"📊 原始数据列: {df_to_upload.columns.tolist()}")
+    print(f"📊 原始数据类型:\n{df_to_upload.dtypes}")
+
+    # 第一步：将所有列中的'null'字符串替换为真正的NaN
+    df_to_upload = df_to_upload.replace('null', np.nan)
+    df_to_upload = df_to_upload.replace('NULL', np.nan)
+    df_to_upload = df_to_upload.replace('None', np.nan)
+
+    # 第二步：处理所有列，尝试转换为数值类型
+    for col in df_to_upload.columns:
+        # 跳过明确的字符串列
+        if col in ['uid', 'variant_list', 'ds', 'sku_id', 'category_id']:
+            continue
+        # 尝试将列转换为数值类型
+        df_to_upload[col] = pd.to_numeric(df_to_upload[col], errors='ignore')
+
+    # 第三步：检查是否还有'null'字符串
+    for col in df_to_upload.columns:
+        if df_to_upload[col].dtype == 'object':
+            null_count = df_to_upload[col].astype(str).str.lower().eq('null').sum()
+            if null_count > 0:
+                print(f"⚠️ 列 {col} 仍包含 {null_count} 个 'null' 字符串，进行清理...")
+                df_to_upload[col] = df_to_upload[col].replace(
+                    to_replace=r'(?i)^null$', value=np.nan, regex=True
+                )
+
+    # 移除完全为NaN的行
+    df_to_upload = df_to_upload.dropna(how='all')
+
+    print(f"📊 清理后数据类型:\n{df_to_upload.dtypes}")
+    print(f"📊 数据清理完成，清理后行数: {len(df_to_upload)}")
 
     table_name = "summerfarm_ds.temp_category_ltr_ab_all_user_view_data_df"
     partition_spec = f"ds={datetime.now().strftime('%Y%m%d')}"
     write_pandas_df_into_odps(
-        df=user_click_with_variant_statistics_df,
+        df=df_to_upload,
         table_name=table_name,
         partition_spec=partition_spec,
         overwrite=True,
         lifecycle=30,
     )
     print(f"数据已成功写入ODPS表: {table_name}，分区: {partition_spec}")
-    print(f"数据行数: {len(user_click_with_variant_statistics_df)}")
+    print(f"数据行数: {len(df_to_upload)}")
+    print("\n✅ ODPS数据上传完成！")
 
-if args.upload_odps:
-    from odps_client import get_odps_sql_result_as_df
-    from datetime import datetime,timedelta
-
-    DAYS_TO_BE_NEW_SKU=3650
-    order_date_to_be_new_sku=(datetime.now()-timedelta(days=DAYS_TO_BE_NEW_SKU)).strftime("%Y%m%d")
-
-    sku_view_sql=f"""
-    SELECT  expe.variant_list
-            ,CASE   WHEN old.viewed_cnt > 0 THEN '之前购买过的SKU'
-                    ELSE '新SKU'
-            END AS 是否新SKU
-            ,COUNT(DISTINCT expe.uid) 用户数
-            ,SUM(sku点击总次数) sku点击总次数
-            ,SUM(sku曝光总次数) sku曝光总次数
-            ,SUM(加入购物车立即购买总次数) 加入购物车立即购买总次数
-    FROM    (
-                SELECT  uid
-                        ,variant_list
-                        ,sku_viewed_or_clicked
-                        ,SUM(COALESCE(sku点击次数,0)) sku点击总次数
-                        ,SUM(sku曝光次数) sku曝光总次数
-                        ,SUM(COALESCE(加入购物车次数,0)+COALESCE(立即购买次数,0)) 加入购物车立即购买总次数
-                FROM    {table_name}
-                WHERE   ds = MAX_PT('{table_name}')
-                GROUP BY uid
-                         ,variant_list
-                         ,sku_viewed_or_clicked
-            ) expe
-    LEFT JOIN   (
-                    SELECT  cust_id
-                            ,sku_id
-                            ,COUNT(*) viewed_cnt
-                    FROM    summerfarm_tech.dwd_trd_order_df
-                    WHERE   ds = MAX_PT('summerfarm_tech.dwd_trd_order_df')
-                    AND     order_date >= '{order_date_to_be_new_sku}'
-                    GROUP BY cust_id
-                             ,sku_id
-                ) old
-    ON      expe.uid = old.cust_id
-    AND     expe.sku_viewed_or_clicked = old.sku_id
-    GROUP BY expe.variant_list
-             ,CASE   WHEN old.viewed_cnt > 0 THEN '之前购买过的SKU'
-                     ELSE '新SKU'
-             END
-    order by expe.variant_list
-             ,CASE   WHEN old.viewed_cnt > 0 THEN '之前购买过的SKU'
-                     ELSE '新SKU'
-             END;
-    """
-
-    result_df=get_odps_sql_result_as_df(sku_view_sql)
-    result_df
-
-
-
-
-
-    result_df['SKU点击率']=result_df['sku点击总次数']/result_df['sku曝光总次数']
-    variant_group=result_df.groupby('variant_list').agg({'sku点击总次数':'sum','sku曝光总次数':'sum','加入购物车立即购买总次数':'sum'}).reset_index()
-    variant_group['分组SKU点击率']=variant_group['sku点击总次数']/variant_group['sku曝光总次数']
-    variant_group['分组加入购物车立即购买率']=variant_group['加入购物车立即购买总次数']/variant_group['sku曝光总次数']
-
-    variant_group.columns=['variant_list', '分组sku点击总次数','分组sku曝光总次数','分组加入购物车立即购买总次数','分组SKU点击率','分组加入购物车立即购买率']
-
-    v2_ctr=variant_group[variant_group['variant_list']=='V2']['分组SKU点击率'].values[0]
-    v2_jg=variant_group[variant_group['variant_list']=='V2']['分组加入购物车立即购买率'].values[0]
-    result_final_df=result_df.merge(variant_group,on='variant_list',how='left')
-    result_final_df['V2点击率对比']=result_final_df['分组SKU点击率']/v2_ctr-1.00
-    result_final_df['V2加入购物车立即购买率对比']=result_final_df['分组加入购物车立即购买率']/v2_jg-1.00
-    result_final_df
-
-
-
-
-
-    print(result_final_df.columns)
-    date_range = user_click_with_variant_statistics_df['ds'].min() + '~' + user_click_with_variant_statistics_df['ds'].max()
-
-    result_final_df
-
-
-
-
-
-    import pandas as pd
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    from matplotlib.ticker import PercentFormatter, FuncFormatter
-
-    # 设置中文字体和样式
-    plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Arial Unicode MS', 'SimHei']
-    plt.rcParams['axes.unicode_minus'] = False
-
-    # 设置seaborn专业风格
-    sns.set_theme(style="whitegrid", font='PingFang SC', palette="husl")
-    sns.set_context("talk", font_scale=0.9)
-
-    # 确保result_final_df存在
-    print("数据列:", result_final_df.columns.tolist())
-    print("\n原始数据:")
-    result_final_df
-
-
-
-
-
-    # ================================================================================
-    # 推荐系统AB实验分析 - V1/V3/V4 vs V2(对照组) 核心指标专业对比图
-    # ================================================================================
-
-    import pandas as pd
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    from matplotlib.ticker import PercentFormatter
-    import warnings
-    warnings.filterwarnings('ignore')
-
-    # 设置中文字体
-    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei']
-    plt.rcParams['axes.unicode_minus'] = False
-    sns.set_theme(style="whitegrid", font='Arial Unicode MS')
-
-    # ==================== 数据准备 ====================
-    df = result_final_df.copy()
-
-    # 分组级别数据（去重）
-    df_group = df[['variant_list', '分组sku点击总次数', '分组sku曝光总次数', '分组加入购物车立即购买总次数',
-                   '分组SKU点击率', '分组加入购物车立即购买率', 'V2点击率对比', 'V2加入购物车立即购买率对比']].drop_duplicates().reset_index(drop=True)
-
-    # 新SKU数据计算
-    df_new_sku = df[df['是否新sku'] == '新SKU'][['variant_list', 'sku点击总次数']].copy()
-    df_new_sku.columns = ['variant_list', '新SKU点击次数']
-    df_total = df.groupby('variant_list')['sku点击总次数'].sum().reset_index()
-    df_total.columns = ['variant_list', '总点击次数']
-    df_new_ratio = df_new_sku.merge(df_total, on='variant_list')
-    df_new_ratio['新SKU点击占比'] = df_new_ratio['新SKU点击次数'] / df_new_ratio['总点击次数']
-
-    # V2基准值
-    v2_new_ratio_val = df_new_ratio[df_new_ratio['variant_list'] == 'V2']['新SKU点击占比'].values[0]
-    df_new_ratio['新SKU点击占比_vs_V2'] = (df_new_ratio['新SKU点击占比'] - v2_new_ratio_val) / v2_new_ratio_val
-
-    # 合并数据
-    df_plot = df_group.merge(df_new_ratio[['variant_list', '新SKU点击次数', '新SKU点击占比', '新SKU点击占比_vs_V2']], on='variant_list')
-
-    # V2基准值
-    v2_clicks = df_plot[df_plot['variant_list'] == 'V2']['分组sku点击总次数'].values[0]
-    v2_exposure = df_plot[df_plot['variant_list'] == 'V2']['分组sku曝光总次数'].values[0]
-    v2_cart = df_plot[df_plot['variant_list'] == 'V2']['分组加入购物车立即购买总次数'].values[0]
-    v2_ctr = df_plot[df_plot['variant_list'] == 'V2']['分组SKU点击率'].values[0]
-    v2_cvr = df_plot[df_plot['variant_list'] == 'V2']['分组加入购物车立即购买率'].values[0]
-    v2_new_click = df_plot[df_plot['variant_list'] == 'V2']['新SKU点击次数'].values[0]
-
-    # 颜色方案 - V2红色(对照组)，其他蓝绿紫色系
-    colors = {'V1': '#3498db', 'V2': '#e74c3c', 'V3': '#27ae60', 'V4': '#9b59b6'}
-
-    # ==================== 创建综合图表 ====================
-    fig = plt.figure(figsize=(24, 20))
-    fig.suptitle(f'推荐系统AB实验分析 - V1/V3/V4 vs V2(对照组) 核心指标对比(新SKU定义:{DAYS_TO_BE_NEW_SKU}未购买) {date_range}', fontsize=22, fontweight='bold', y=0.98)
-
-    # ---------- 图1: 分组SKU点击总次数 ----------
-    ax1 = fig.add_subplot(3, 3, 1)
-    bars1 = ax1.bar(df_plot['variant_list'], df_plot['分组sku点击总次数'],
-                    color=[colors[v] for v in df_plot['variant_list']], edgecolor='white', linewidth=2, alpha=0.85)
-    for bar, (_, row) in zip(bars1, df_plot.iterrows()):
-        height = bar.get_height()
-        diff = (row['分组sku点击总次数'] - v2_clicks) / v2_clicks * 100
-        label = f'{int(height):,}\n(基准)' if row['variant_list'] == 'V2' else f'{int(height):,}\n({diff:+.1f}%)'
-        color = '#e74c3c' if row['variant_list'] == 'V2' else ('#27ae60' if diff > 0 else '#c0392b')
-        ax1.text(bar.get_x() + bar.get_width()/2., height + 30, label, ha='center', va='bottom', fontsize=11, fontweight='bold', color=color)
-    ax1.set_title('分组SKU点击总次数', fontsize=14, fontweight='bold', pad=15)
-    ax1.set_ylabel('点击次数', fontsize=12)
-    ax1.set_ylim(0, max(df_plot['分组sku点击总次数']) * 1.18)
-    ax1.axhline(y=v2_clicks, color='#e74c3c', linestyle='--', alpha=0.5, linewidth=1.5)
-    ax1.spines['top'].set_visible(False)
-    ax1.spines['right'].set_visible(False)
-
-    # ---------- 图2: 分组SKU曝光总次数 ----------
-    ax2 = fig.add_subplot(3, 3, 2)
-    bars2 = ax2.bar(df_plot['variant_list'], df_plot['分组sku曝光总次数'],
-                    color=[colors[v] for v in df_plot['variant_list']], edgecolor='white', linewidth=2, alpha=0.85)
-    for bar, (_, row) in zip(bars2, df_plot.iterrows()):
-        height = bar.get_height()
-        diff = (row['分组sku曝光总次数'] - v2_exposure) / v2_exposure * 100
-        label = f'{int(height):,}\n(基准)' if row['variant_list'] == 'V2' else f'{int(height):,}\n({diff:+.1f}%)'
-        color = '#e74c3c' if row['variant_list'] == 'V2' else ('#27ae60' if diff > 0 else '#c0392b')
-        ax2.text(bar.get_x() + bar.get_width()/2., height + 600, label, ha='center', va='bottom', fontsize=11, fontweight='bold', color=color)
-    ax2.set_title('分组SKU曝光总次数', fontsize=14, fontweight='bold', pad=15)
-    ax2.set_ylabel('曝光次数', fontsize=12)
-    ax2.set_ylim(0, max(df_plot['分组sku曝光总次数']) * 1.18)
-    ax2.axhline(y=v2_exposure, color='#e74c3c', linestyle='--', alpha=0.5, linewidth=1.5)
-    ax2.spines['top'].set_visible(False)
-    ax2.spines['right'].set_visible(False)
-
-    # ---------- 图3: 分组加入购物车立即购买总次数 ----------
-    ax3 = fig.add_subplot(3, 3, 3)
-    bars3 = ax3.bar(df_plot['variant_list'], df_plot['分组加入购物车立即购买总次数'],
-                    color=[colors[v] for v in df_plot['variant_list']], edgecolor='white', linewidth=2, alpha=0.85)
-    for bar, (_, row) in zip(bars3, df_plot.iterrows()):
-        height = bar.get_height()
-        diff = (row['分组加入购物车立即购买总次数'] - v2_cart) / v2_cart * 100
-        label = f'{int(height):,}\n(基准)' if row['variant_list'] == 'V2' else f'{int(height):,}\n({diff:+.1f}%)'
-        color = '#e74c3c' if row['variant_list'] == 'V2' else ('#27ae60' if diff > 0 else '#c0392b')
-        ax3.text(bar.get_x() + bar.get_width()/2., height + 8, label, ha='center', va='bottom', fontsize=11, fontweight='bold', color=color)
-    ax3.set_title('分组加入购物车立即购买总次数', fontsize=14, fontweight='bold', pad=15)
-    ax3.set_ylabel('次数', fontsize=12)
-    ax3.set_ylim(0, max(df_plot['分组加入购物车立即购买总次数']) * 1.18)
-    ax3.axhline(y=v2_cart, color='#e74c3c', linestyle='--', alpha=0.5, linewidth=1.5)
-    ax3.spines['top'].set_visible(False)
-    ax3.spines['right'].set_visible(False)
-
-    # ---------- 图4: 新SKU点击次数 ----------
-    ax4 = fig.add_subplot(3, 3, 4)
-    bars4 = ax4.bar(df_plot['variant_list'], df_plot['新SKU点击次数'],
-                    color=[colors[v] for v in df_plot['variant_list']], edgecolor='white', linewidth=2, alpha=0.85)
-    for bar, (_, row) in zip(bars4, df_plot.iterrows()):
-        height = bar.get_height()
-        diff = (row['新SKU点击次数'] - v2_new_click) / v2_new_click * 100
-        label = f'{int(height):,}\n(基准)' if row['variant_list'] == 'V2' else f'{int(height):,}\n({diff:+.1f}%)'
-        color = '#e74c3c' if row['variant_list'] == 'V2' else ('#27ae60' if diff > 0 else '#c0392b')
-        ax4.text(bar.get_x() + bar.get_width()/2., height + 15, label, ha='center', va='bottom', fontsize=11, fontweight='bold', color=color)
-    ax4.set_title('新SKU点击总次数', fontsize=14, fontweight='bold', pad=15)
-    ax4.set_ylabel('点击次数', fontsize=12)
-    ax4.set_ylim(0, max(df_plot['新SKU点击次数']) * 1.18)
-    ax4.axhline(y=v2_new_click, color='#e74c3c', linestyle='--', alpha=0.5, linewidth=1.5)
-    ax4.spines['top'].set_visible(False)
-    ax4.spines['right'].set_visible(False)
-
-    # ---------- 图5: 新SKU点击占比 (及相比V2提升) ----------
-    ax5 = fig.add_subplot(3, 3, 5)
-    bars5 = ax5.bar(df_plot['variant_list'], df_plot['新SKU点击占比'] * 100,
-                    color=[colors[v] for v in df_plot['variant_list']], edgecolor='white', linewidth=2, alpha=0.85)
-    for bar, (_, row) in zip(bars5, df_plot.iterrows()):
-        height = bar.get_height()
-        diff = row['新SKU点击占比_vs_V2'] * 100
-        label = f'{height:.1f}%\n(基准)' if row['variant_list'] == 'V2' else f'{height:.1f}%\n({diff:+.1f}%)'
-        color = '#e74c3c' if row['variant_list'] == 'V2' else ('#27ae60' if diff > 0 else '#c0392b')
-        ax5.text(bar.get_x() + bar.get_width()/2., height + 0.5, label, ha='center', va='bottom', fontsize=11, fontweight='bold', color=color)
-    ax5.set_title('新SKU点击占比 (及相比V2提升)', fontsize=14, fontweight='bold', pad=15)
-    ax5.set_ylabel('占比 (%)', fontsize=12)
-    ax5.set_ylim(0, max(df_plot['新SKU点击占比'] * 100) * 1.18)
-    ax5.axhline(y=v2_new_ratio_val * 100, color='#e74c3c', linestyle='--', alpha=0.5, linewidth=1.5)
-    ax5.spines['top'].set_visible(False)
-    ax5.spines['right'].set_visible(False)
-
-    # ---------- 图6: V2点击率对比 (分组SKU点击率) ----------
-    ax6 = fig.add_subplot(3, 3, 6)
-    bars6 = ax6.bar(df_plot['variant_list'], df_plot['分组SKU点击率'] * 100,
-                    color=[colors[v] for v in df_plot['variant_list']], edgecolor='white', linewidth=2, alpha=0.85)
-    for bar, (_, row) in zip(bars6, df_plot.iterrows()):
-        height = bar.get_height()
-        diff = row['V2点击率对比'] * 100
-        label = f'{height:.2f}%\n(基准)' if row['variant_list'] == 'V2' else f'{height:.2f}%\n({diff:+.1f}%)'
-        color = '#e74c3c' if row['variant_list'] == 'V2' else ('#27ae60' if diff > 0 else '#c0392b')
-        ax6.text(bar.get_x() + bar.get_width()/2., height + 0.03, label, ha='center', va='bottom', fontsize=11, fontweight='bold', color=color)
-    ax6.set_title('V2点击率对比 (分组SKU点击率)', fontsize=14, fontweight='bold', pad=15)
-    ax6.set_ylabel('点击率 (%)', fontsize=12)
-    ax6.set_ylim(0, max(df_plot['分组SKU点击率'] * 100) * 1.20)
-    ax6.axhline(y=v2_ctr * 100, color='#e74c3c', linestyle='--', alpha=0.5, linewidth=1.5)
-    ax6.spines['top'].set_visible(False)
-    ax6.spines['right'].set_visible(False)
-
-    # ---------- 图7: V2加入购物车立即购买率对比 ----------
-    ax7 = fig.add_subplot(3, 3, 7)
-    bars7 = ax7.bar(df_plot['variant_list'], df_plot['分组加入购物车立即购买率'] * 100,
-                    color=[colors[v] for v in df_plot['variant_list']], edgecolor='white', linewidth=2, alpha=0.85)
-    for bar, (_, row) in zip(bars7, df_plot.iterrows()):
-        height = bar.get_height()
-        diff = row['V2加入购物车立即购买率对比'] * 100
-        label = f'{height:.3f}%\n(基准)' if row['variant_list'] == 'V2' else f'{height:.3f}%\n({diff:+.1f}%)'
-        color = '#e74c3c' if row['variant_list'] == 'V2' else ('#27ae60' if diff > 0 else '#c0392b')
-        ax7.text(bar.get_x() + bar.get_width()/2., height + 0.0008, label, ha='center', va='bottom', fontsize=11, fontweight='bold', color=color)
-    ax7.set_title('V2加入购物车立即购买率对比', fontsize=14, fontweight='bold', pad=15)
-    ax7.set_ylabel('转化率 (%)', fontsize=12)
-    ax7.set_ylim(0, max(df_plot['分组加入购物车立即购买率'] * 100) * 1.22)
-    ax7.axhline(y=v2_cvr * 100, color='#e74c3c', linestyle='--', alpha=0.5, linewidth=1.5)
-    ax7.spines['top'].set_visible(False)
-    ax7.spines['right'].set_visible(False)
-
-    # ---------- 图8: 各实验组 vs V2 综合变化率对比 ----------
-    ax8 = fig.add_subplot(3, 3, 8)
-    metrics = ['点击次数', '曝光次数', '加购次数', '新SKU点击', '新SKU占比', '点击率', '转化率']
-    v1_changes = [
-        (df_plot[df_plot['variant_list']=='V1']['分组sku点击总次数'].values[0] - v2_clicks) / v2_clicks * 100,
-        (df_plot[df_plot['variant_list']=='V1']['分组sku曝光总次数'].values[0] - v2_exposure) / v2_exposure * 100,
-        (df_plot[df_plot['variant_list']=='V1']['分组加入购物车立即购买总次数'].values[0] - v2_cart) / v2_cart * 100,
-        (df_plot[df_plot['variant_list']=='V1']['新SKU点击次数'].values[0] - v2_new_click) / v2_new_click * 100,
-        df_plot[df_plot['variant_list']=='V1']['新SKU点击占比_vs_V2'].values[0] * 100,
-        df_plot[df_plot['variant_list']=='V1']['V2点击率对比'].values[0] * 100,
-        df_plot[df_plot['variant_list']=='V1']['V2加入购物车立即购买率对比'].values[0] * 100
-    ]
-    v3_changes = [
-        (df_plot[df_plot['variant_list']=='V3']['分组sku点击总次数'].values[0] - v2_clicks) / v2_clicks * 100,
-        (df_plot[df_plot['variant_list']=='V3']['分组sku曝光总次数'].values[0] - v2_exposure) / v2_exposure * 100,
-        (df_plot[df_plot['variant_list']=='V3']['分组加入购物车立即购买总次数'].values[0] - v2_cart) / v2_cart * 100,
-        (df_plot[df_plot['variant_list']=='V3']['新SKU点击次数'].values[0] - v2_new_click) / v2_new_click * 100,
-        df_plot[df_plot['variant_list']=='V3']['新SKU点击占比_vs_V2'].values[0] * 100,
-        df_plot[df_plot['variant_list']=='V3']['V2点击率对比'].values[0] * 100,
-        df_plot[df_plot['variant_list']=='V3']['V2加入购物车立即购买率对比'].values[0] * 100
-    ]
-    v4_changes = [
-        (df_plot[df_plot['variant_list']=='V4']['分组sku点击总次数'].values[0] - v2_clicks) / v2_clicks * 100,
-        (df_plot[df_plot['variant_list']=='V4']['分组sku曝光总次数'].values[0] - v2_exposure) / v2_exposure * 100,
-        (df_plot[df_plot['variant_list']=='V4']['分组加入购物车立即购买总次数'].values[0] - v2_cart) / v2_cart * 100,
-        (df_plot[df_plot['variant_list']=='V4']['新SKU点击次数'].values[0] - v2_new_click) / v2_new_click * 100,
-        df_plot[df_plot['variant_list']=='V4']['新SKU点击占比_vs_V2'].values[0] * 100,
-        df_plot[df_plot['variant_list']=='V4']['V2点击率对比'].values[0] * 100,
-        df_plot[df_plot['variant_list']=='V4']['V2加入购物车立即购买率对比'].values[0] * 100
-    ]
-
-    x = np.arange(len(metrics))
-    width = 0.25
-    bars_v1 = ax8.bar(x - width, v1_changes, width, label='V1 vs V2', color='#3498db', alpha=0.85)
-    bars_v3 = ax8.bar(x, v3_changes, width, label='V3 vs V2', color='#27ae60', alpha=0.85)
-    bars_v4 = ax8.bar(x + width, v4_changes, width, label='V4 vs V2', color='#9b59b6', alpha=0.85)
-    ax8.axhline(y=0, color='#e74c3c', linestyle='-', linewidth=2, label='V2基准线')
-    ax8.set_ylabel('相对V2变化率 (%)', fontsize=12)
-    ax8.set_title('各实验组 vs V2 综合变化率对比', fontsize=14, fontweight='bold', pad=15)
-    ax8.set_xticks(x)
-    ax8.set_xticklabels(metrics, rotation=30, ha='right', fontsize=10)
-    ax8.legend(loc='upper right', fontsize=10)
-    ax8.spines['top'].set_visible(False)
-    ax8.spines['right'].set_visible(False)
-    ax8.grid(axis='y', alpha=0.3)
-
-    # ---------- 图9: 关键结论摘要 (动态数值版) ----------
-    ax9 = fig.add_subplot(3, 3, 9)
-    ax9.axis('off')
-
-    # 动态提取数值辅助函数 (索引对应 metrics 列表)
-    # metrics = ['点击次数', '曝光次数', '加购次数', '新SKU点击', '新SKU占比', '点击率', '转化率']
-    def format_val(val):
-        return f"{val:+.1f}%"
-
-    summary_text = f"""
-    【实验组 vs V2(对照组) 关键发现】
-
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    V1 (对比组):
-       • 点击率: {format_val(v1_changes[5])}     转化率: {format_val(v1_changes[6])}
-       • 新SKU占比: {format_val(v1_changes[4])}  (发现新品能力提升)
-
-    V3 (隐式转换版 - Clickbased):
-       • 点击率: {format_val(v3_changes[5])}     转化率: {format_val(v3_changes[6])}
-       • 新SKU占比: {format_val(v3_changes[4])}  (最佳新品推荐)
-       • 点击次数: {format_val(v3_changes[0])}
-
-    V4 (隐式转换版 - Clickbased):
-       • 点击率: {format_val(v4_changes[5])}     转化率: {format_val(v4_changes[6])}
-       • 新SKU占比: {format_val(v4_changes[4])}  (新品曝光最多)
-       • 点击次数: {format_val(v4_changes[0])}   (点击量最高)
-
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    结论:
-       • {"V3/V4" if v3_changes[4] > 0 and v4_changes[4] > 0 else "部分实验组"} 在新品发现能力上显著优于V2
-       • V2 在转化效率上仍保持领先
-       • 建议: 考虑 {"V3" if abs(v3_changes[6]) < abs(v4_changes[6]) else "V4"} 作为业务平衡方案
-    """
-
-    ax9.text(
-        0.05, 0.95, summary_text,
-        transform=ax9.transAxes,
-        fontsize=13,
-        verticalalignment='top',
-        bbox=dict(
-            boxstyle='round',
-            facecolor='#f8f9fa',
-            edgecolor='#dee2e6',
-            alpha=0.9
-        )
-    )
-
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
-    plt.savefig('ab_experiment_comparison_final.png', dpi=150, bbox_inches='tight', facecolor='white')
-    plt.show()
-
-    print("\n图表已保存: ab_experiment_comparison_final.png")
