@@ -482,7 +482,9 @@ user_sku_click_serial.head(5)
 
 
 
-# 聚合4: CTR计算
+# 聚合4: 用户级别CTR计算
+# 计算方式：先按用户聚合总点击次数和总曝光次数，再计算 CTR = sum(点击) / sum(曝光)
+# 这样可以避免单个SKU级别的异常数据（如只有点击没有曝光）对整体CTR的影响
 user_sku_ctr_serial = (
     user_click_with_variant_statistics_df
     .groupby(["variant_list", "uid"])
@@ -493,19 +495,107 @@ user_sku_ctr_serial = (
     .reset_index()
 )
 
-# 过滤掉曝光次数为0的记录（避免除以零产生inf）
+# 过滤掉曝光次数为0的用户（避免除以零）
 user_sku_ctr_serial = user_sku_ctr_serial[user_sku_ctr_serial['SKU曝光次数'] > 0].copy()
 
-# 计算CTR
+# 计算用户级别CTR: 用户总点击次数 / 用户总曝光次数
 user_sku_ctr_serial['CTR'] = user_sku_ctr_serial['SKU点击次数'] / user_sku_ctr_serial['SKU曝光次数']
-
-# 处理异常CTR值（理论上CTR应该在0-1之间，超过1的是数据异常）
-user_sku_ctr_serial['CTR'] = user_sku_ctr_serial['CTR'].clip(upper=1.0)
 
 # 关联用户画像
 user_sku_ctr_serial = user_sku_ctr_serial.merge(user_profile_mapping, on='uid', how='left')
 
 user_sku_ctr_serial.head(5)
+
+
+# ============================================================================
+# 聚合5-8: 按类目维度的用户级别聚合（用于类目分组分析）
+# ============================================================================
+
+# 创建类目维度的映射表（用于后续JOIN）
+user_cate_mapping = (
+    user_click_with_variant_statistics_df[['uid', 'cate_level1_id', 'cate_level2_id']]
+    .drop_duplicates()
+)
+
+# 聚合5: 按一级类目的SKU曝光次数
+user_sku_view_by_cate1 = (
+    user_click_with_variant_statistics_df
+    .groupby(["variant_list", "uid", "cate_level1_id"])
+    .agg({"SKU曝光次数": "sum"})
+    .reset_index()
+)
+
+# 聚合6: 按一级类目的SKU点击次数
+user_sku_click_by_cate1 = (
+    user_click_with_variant_statistics_df
+    .groupby(["variant_list", "uid", "cate_level1_id"])
+    .agg({"SKU点击次数": "sum"})
+    .reset_index()
+)
+
+# 聚合7: 按一级类目的平均点击位置
+user_avg_position_by_cate1 = (
+    user_click_with_variant_statistics_df[
+        (user_click_with_variant_statistics_df['SKU点击次数'] > 0) &
+        (user_click_with_variant_statistics_df['平均点击位置'].notna())
+    ]
+    .groupby(["variant_list", "uid", "cate_level1_id"])
+    .agg({"平均点击位置": "mean"})
+    .reset_index()
+)
+
+# 聚合8: 按一级类目的CTR
+user_ctr_by_cate1 = (
+    user_click_with_variant_statistics_df
+    .groupby(["variant_list", "uid", "cate_level1_id"])
+    .agg({
+        "SKU点击次数": "sum",
+        "SKU曝光次数": "sum"
+    })
+    .reset_index()
+)
+user_ctr_by_cate1 = user_ctr_by_cate1[user_ctr_by_cate1['SKU曝光次数'] > 0].copy()
+user_ctr_by_cate1['CTR'] = user_ctr_by_cate1['SKU点击次数'] / user_ctr_by_cate1['SKU曝光次数']
+
+# 聚合9-12: 按二级类目的聚合
+user_sku_view_by_cate2 = (
+    user_click_with_variant_statistics_df
+    .groupby(["variant_list", "uid", "cate_level2_id"])
+    .agg({"SKU曝光次数": "sum"})
+    .reset_index()
+)
+
+user_sku_click_by_cate2 = (
+    user_click_with_variant_statistics_df
+    .groupby(["variant_list", "uid", "cate_level2_id"])
+    .agg({"SKU点击次数": "sum"})
+    .reset_index()
+)
+
+user_avg_position_by_cate2 = (
+    user_click_with_variant_statistics_df[
+        (user_click_with_variant_statistics_df['SKU点击次数'] > 0) &
+        (user_click_with_variant_statistics_df['平均点击位置'].notna())
+    ]
+    .groupby(["variant_list", "uid", "cate_level2_id"])
+    .agg({"平均点击位置": "mean"})
+    .reset_index()
+)
+
+user_ctr_by_cate2 = (
+    user_click_with_variant_statistics_df
+    .groupby(["variant_list", "uid", "cate_level2_id"])
+    .agg({
+        "SKU点击次数": "sum",
+        "SKU曝光次数": "sum"
+    })
+    .reset_index()
+)
+user_ctr_by_cate2 = user_ctr_by_cate2[user_ctr_by_cate2['SKU曝光次数'] > 0].copy()
+user_ctr_by_cate2['CTR'] = user_ctr_by_cate2['SKU点击次数'] / user_ctr_by_cate2['SKU曝光次数']
+
+print(f"\n📊 一级类目数量: {user_click_with_variant_statistics_df['cate_level1_id'].nunique()}")
+print(f"📊 二级类目数量: {user_click_with_variant_statistics_df['cate_level2_id'].nunique()}")
 
 
 # ## AB实验统计分析模块
@@ -769,6 +859,10 @@ def analyze_metric_by_variant(
 
         variant_data = df[df[variant_col] == variant][metric_col]
 
+        # 检查样本量是否足够（至少需要2个样本才能计算方差）
+        if len(variant_data) < 2 or len(control_data) < 2:
+            continue
+
         # 参数检验（t检验）
         ab_result = perform_ab_test(
             variant_data, control_data,
@@ -776,7 +870,10 @@ def analyze_metric_by_variant(
         )
 
         # 非参数检验（Mann-Whitney）
-        _, mw_p = perform_mann_whitney_test(variant_data, control_data)
+        try:
+            _, mw_p = perform_mann_whitney_test(variant_data, control_data)
+        except ValueError:
+            mw_p = float('nan')
 
         # Bootstrap置信区间
         variant_ci = calculate_bootstrap_ci(variant_data)
@@ -924,6 +1021,7 @@ def print_ab_analysis_report(
 # 执行AB实验分析
 
 # 定义要分析的指标配置
+# CTR计算方式：用户级别聚合后计算 sum(点击)/sum(曝光)，避免SKU级别异常数据的影响
 metrics_to_analyze = [
     {'df': user_sku_view_serial, 'metric_col': 'SKU曝光次数'},
     {'df': user_sku_click_serial, 'metric_col': 'SKU点击次数'},
@@ -985,15 +1083,34 @@ def run_segmented_ab_analysis(
         # 获取所有分组值
         segments = df[segment_col].unique()
 
-        for segment in sorted(segments):
+        for segment in sorted(segments, key=lambda x: str(x)):
             segment_df = df[df[segment_col] == segment]
 
             if len(segment_df) < 10:  # 样本量太少，跳过
                 continue
 
-            desc_stats, ab_results = analyze_metric_by_variant(
-                segment_df, metric_col, variant_col, control_variant, alpha
-            )
+            # 检查对照组是否有足够样本
+            control_df = segment_df[segment_df[variant_col] == control_variant]
+            if len(control_df) < 2:  # 对照组样本太少，跳过
+                continue
+
+            # 检查是否至少有一个实验组有足够样本
+            other_variants = segment_df[segment_df[variant_col] != control_variant][variant_col].unique()
+            has_valid_variant = False
+            for v in other_variants:
+                if len(segment_df[segment_df[variant_col] == v]) >= 2:
+                    has_valid_variant = True
+                    break
+            if not has_valid_variant:
+                continue
+
+            try:
+                desc_stats, ab_results = analyze_metric_by_variant(
+                    segment_df, metric_col, variant_col, control_variant, alpha
+                )
+            except Exception as e:
+                print(f"⚠️ 跳过分组 {segment}（{metric_col}）: {str(e)[:50]}")
+                continue
 
             # 添加分组信息
             desc_stats['分组维度'] = segment_name
@@ -1107,6 +1224,76 @@ if not trd_ab_results.empty:
     trd_summary = trd_ab_results[['分组值', '指标', '实验组', '实验组样本数', '对照组样本数',
                                    '提升度(%)', 't检验p值', '是否显著(α=0.05)']].copy()
     print(trd_summary.to_string(index=False))
+
+
+# ============================================================================
+# 3. 按一级类目分组的AB实验分析
+# ============================================================================
+print("\n\n")
+print("=" * 100)
+print("  📦 按一级类目分组的AB实验分析")
+print("=" * 100)
+
+# 定义按一级类目分组的指标配置
+metrics_by_cate1 = [
+    {'df': user_sku_view_by_cate1, 'metric_col': 'SKU曝光次数'},
+    {'df': user_sku_click_by_cate1, 'metric_col': 'SKU点击次数'},
+    {'df': user_ctr_by_cate1, 'metric_col': 'CTR'},
+    {'df': user_avg_position_by_cate1, 'metric_col': '平均点击位置'},
+]
+
+cate1_desc_stats, cate1_ab_results = run_segmented_ab_analysis(
+    metrics_by_cate1,
+    segment_col='cate_level1_id',
+    segment_name='一级类目',
+    control_variant='V2',
+    alpha=0.05
+)
+
+print_segmented_ab_report(cate1_ab_results, '一级类目',
+                         title=f"分类页LTR重排序AB实验 - 一级类目分组分析 ({START_DATE} ~ 今)")
+
+# 输出一级类目分组的汇总表格
+if not cate1_ab_results.empty:
+    print("\n📋 一级类目分组AB测试汇总表:")
+    cate1_summary = cate1_ab_results[['分组值', '指标', '实验组', '实验组样本数', '对照组样本数',
+                                       '提升度(%)', 't检验p值', '是否显著(α=0.05)']].copy()
+    print(cate1_summary.to_string(index=False))
+
+
+# ============================================================================
+# 4. 按二级类目分组的AB实验分析
+# ============================================================================
+print("\n\n")
+print("=" * 100)
+print("  📦 按二级类目分组的AB实验分析")
+print("=" * 100)
+
+# 定义按二级类目分组的指标配置
+metrics_by_cate2 = [
+    {'df': user_sku_view_by_cate2, 'metric_col': 'SKU曝光次数'},
+    {'df': user_sku_click_by_cate2, 'metric_col': 'SKU点击次数'},
+    {'df': user_ctr_by_cate2, 'metric_col': 'CTR'},
+    {'df': user_avg_position_by_cate2, 'metric_col': '平均点击位置'},
+]
+
+cate2_desc_stats, cate2_ab_results = run_segmented_ab_analysis(
+    metrics_by_cate2,
+    segment_col='cate_level2_id',
+    segment_name='二级类目',
+    control_variant='V2',
+    alpha=0.05
+)
+
+print_segmented_ab_report(cate2_ab_results, '二级类目',
+                         title=f"分类页LTR重排序AB实验 - 二级类目分组分析 ({START_DATE} ~ 今)")
+
+# 输出二级类目分组的汇总表格
+if not cate2_ab_results.empty:
+    print("\n📋 二级类目分组AB测试汇总表:")
+    cate2_summary = cate2_ab_results[['分组值', '指标', '实验组', '实验组样本数', '对照组样本数',
+                                       '提升度(%)', 't检验p值', '是否显著(α=0.05)']].copy()
+    print(cate2_summary.to_string(index=False))
 
 
 # ============================================================================
@@ -1396,6 +1583,30 @@ if not trd_ab_results.empty:
                                       title_prefix=f"分类页LTR重排序 ({START_DATE})",
                                       user_count_df=trd_user_counts)
 
+# 计算一级类目分组的用户数统计
+cate1_user_counts = user_click_with_variant_statistics_df.groupby('cate_level1_id')['uid'].nunique()
+print("\n📊 一级类目分组用户数统计:")
+print(cate1_user_counts.sort_values(ascending=False).head(20))
+
+# 计算二级类目分组的用户数统计
+cate2_user_counts = user_click_with_variant_statistics_df.groupby('cate_level2_id')['uid'].nunique()
+print("\n📊 二级类目分组用户数统计 (Top 20):")
+print(cate2_user_counts.sort_values(ascending=False).head(20))
+
+if not cate1_ab_results.empty:
+    create_segmented_ab_visualization(cate1_ab_results, '一级类目',
+                                      title_prefix=f"分类页LTR重排序 ({START_DATE})",
+                                      user_count_df=cate1_user_counts)
+
+if not cate2_ab_results.empty:
+    # 二级类目可能较多，只可视化用户数Top10的类目
+    top_cate2 = cate2_user_counts.sort_values(ascending=False).head(10).index.tolist()
+    cate2_ab_results_top = cate2_ab_results[cate2_ab_results['分组值'].isin(top_cate2)]
+    if not cate2_ab_results_top.empty:
+        create_segmented_ab_visualization(cate2_ab_results_top, '二级类目Top10',
+                                          title_prefix=f"分类页LTR重排序 ({START_DATE})",
+                                          user_count_df=cate2_user_counts)
+
 
 # 将AB测试结果写入本地CSV文件
 # 获取数据的开始和结束日期
@@ -1419,6 +1630,16 @@ if not trd_ab_results.empty:
     trd_csv_filename = f"./data/ab_test_results_by_trd_amt_{data_start_date}_{data_end_date}.csv"
     trd_ab_results.to_csv(trd_csv_filename, index=False, encoding='utf-8-sig')
     print(f"✅ 90天交易属性分组AB测试结果已保存到: {trd_csv_filename}")
+
+if not cate1_ab_results.empty:
+    cate1_csv_filename = f"./data/ab_test_results_by_cate1_{data_start_date}_{data_end_date}.csv"
+    cate1_ab_results.to_csv(cate1_csv_filename, index=False, encoding='utf-8-sig')
+    print(f"✅ 一级类目分组AB测试结果已保存到: {cate1_csv_filename}")
+
+if not cate2_ab_results.empty:
+    cate2_csv_filename = f"./data/ab_test_results_by_cate2_{data_start_date}_{data_end_date}.csv"
+    cate2_ab_results.to_csv(cate2_csv_filename, index=False, encoding='utf-8-sig')
+    print(f"✅ 二级类目分组AB测试结果已保存到: {cate2_csv_filename}")
 
 if not args.upload_odps:
     print("未指定上传到ODPS，程序结束")
