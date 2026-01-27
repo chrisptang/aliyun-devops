@@ -194,10 +194,9 @@ print(stats)
 
 view_query = """
 type:cl or type:view | select ds,
-    '/goods' as "页面名称",uid,sku_viewed_or_clicked,
+    '/goods' as "页面名称",uid,sku_viewed_or_clicked,cate_level1_id,cate_level2_id,
     count(distinct case when type='view' and position_id='goods' then (uid,sku_viewed_or_clicked,__time__,idx) end) as "SKU曝光次数",
     count(distinct case when type='cl' and position_id in ('goods','唤起购买') then (uid,sku_viewed_or_clicked,__time__,idx) end) as "SKU点击次数",
-    round(1.00*count(distinct case when type='cl' and position_id in ('goods','唤起购买') then (uid,sku_viewed_or_clicked,__time__,idx) end)/count(distinct case when type='view' and position_id='goods' then (uid,sku_viewed_or_clicked,__time__,idx) end),4) as "SKU点击率",
     count(distinct case when type='cl' and position_id in ('goods','唤起购买') and idx <= 3 then (uid,sku_viewed_or_clicked,__time__,idx) end) as "前4位SKU点击次数",
     count(distinct case when type='cl' and position_id='唤起购买' then (uid,sku_viewed_or_clicked,__time__,idx) end) as "唤起加购弹窗点击次数",
     count(distinct case when type='cl' and position_id='加购弹窗' and position_name='加入购物车' then (uid,sku_viewed_or_clicked,__time__,idx) end) as "加入购物车次数",
@@ -216,6 +215,8 @@ from (
             then COALESCE(regexp_extract(bid, 'pid:([^,]+)', 1),pid) 
             else COALESCE(regexp_extract(bid, 'name:([^,]+)', 1),name) 
         end as position_name,
+        regexp_extract(url, '[?&]id=([^&]+)', 1) AS cate_level1_id,
+    	regexp_extract(url, '[?&]cid=([^&]+)', 1) AS cate_level2_id,
         COALESCE(regexp_extract(bid, 'pid:([^,]+)', 1),pid) as position_id,
         uid,__time__,
         cast(COALESCE(regexp_extract(bid, 'idx:([0-9]+)', 1),idx) as bigint) as idx,
@@ -226,9 +227,9 @@ from (
         and COALESCE(regexp_extract(bid, 'sku:([0-9a-zA-Z]{1,20})', 1),sku) is not null 
     limit 100000000
 )
-group by 1,2,3,4
+group by 1,2,3,4,5,6
 having length(uid)>0
-order by 5 desc
+order by 7 desc
 """
 
 
@@ -317,6 +318,96 @@ user_click_with_variant_statistics_df = user_click_with_variant_statistics_df[
 ]
 
 
+# ============================================================================
+# 获取用户画像数据：通过ODPS临时表LEFT JOIN（一次性获取）
+# ============================================================================
+
+def get_user_profile_via_odps_join(uids: list) -> pd.DataFrame:
+    """
+    将uid列表上传到ODPS临时表，然后用LEFT JOIN一次性获取所有用户画像
+
+    Args:
+        uids: 用户uid列表
+
+    Returns:
+        pd.DataFrame: 包含cust_id, region, has_trd_amt_90d的DataFrame
+    """
+    from odps_client import write_pandas_df_into_odps
+
+    if not uids:
+        return pd.DataFrame(columns=['cust_id', 'region', 'has_trd_amt_90d'])
+
+    # 1. 创建uid DataFrame并上传到ODPS临时表
+    uid_df = pd.DataFrame({'cust_id': [str(uid) for uid in uids]})
+    temp_table = "summerfarm_ds.temp_ab_experiment_uids"
+    # 使用当天日期作为分区
+    partition_spec = f"ds={datetime.now().strftime('%Y%m%d')}"
+
+    print(f"正在上传 {len(uids)} 个用户ID到ODPS临时表...")
+    write_pandas_df_into_odps(
+        df=uid_df,
+        table_name=temp_table,
+        partition_spec=partition_spec,
+        overwrite=True,
+        lifecycle=1  # 1天后自动删除
+    )
+    print(f"✅ 用户ID已上传到临时表: {temp_table}")
+
+    # 2. 执行LEFT JOIN SQL获取用户画像
+    today_ds = datetime.now().strftime('%Y%m%d')
+    sql = f"""
+    SELECT
+        t.cust_id,
+        CASE
+            WHEN p.register_province IN ('浙江', '浙江省', '上海', '上海市', '江苏', '江苏省') THEN '华东区'
+            WHEN p.register_province IN ('广西', '广西壮族自治区', '广东', '广东省') THEN '华南区'
+            WHEN p.register_province IN ('湖北', '湖北省', '湖南', '湖南省', '江西', '江西省') THEN '华中区'
+            ELSE '其他区域'
+        END AS region,
+        CASE WHEN p.trd_amt_90d > 0 THEN '90天内有交易额' ELSE '无' END AS has_trd_amt_90d
+    FROM {temp_table} t
+    LEFT JOIN summerfarm_tech.dws_cust_profile_asset_df p
+        ON t.cust_id = p.cust_id
+        AND p.ds = max_pt('summerfarm_tech.dws_cust_profile_asset_df')
+    WHERE t.ds = '{today_ds}'
+    """
+
+    print("正在从ODPS获取用户画像数据（LEFT JOIN）...")
+    result_df = get_odps_sql_result_as_df(sql)
+    print(f"✅ 获取到 {len(result_df)} 条用户画像记录")
+
+    return result_df
+
+
+# 获取实验用户的uid列表
+experiment_uids = user_click_with_variant_statistics_df['uid'].unique().tolist()
+print(f"\n实验用户数: {len(experiment_uids)}")
+
+# 从ODPS获取用户画像（一次性LEFT JOIN）
+print("\n" + "=" * 60)
+print("获取用户画像数据（区域 & 90天交易属性）")
+print("=" * 60)
+user_profile_df = get_user_profile_via_odps_join(experiment_uids)
+
+# 将用户画像数据合并到实验数据中
+user_click_with_variant_statistics_df = user_click_with_variant_statistics_df.merge(
+    user_profile_df[['cust_id', 'region', 'has_trd_amt_90d']],
+    left_on='uid',
+    right_on='cust_id',
+    how='left'
+)
+
+# 填充缺失值
+user_click_with_variant_statistics_df['region'] = user_click_with_variant_statistics_df['region'].fillna('其他区域')
+user_click_with_variant_statistics_df['has_trd_amt_90d'] = user_click_with_variant_statistics_df['has_trd_amt_90d'].fillna('无')
+
+# 显示区域分布
+print("\n实验用户区域分布:")
+print(user_click_with_variant_statistics_df.groupby('region')['uid'].nunique())
+
+# 显示90天交易属性分布
+print("\n实验用户90天交易属性分布:")
+print(user_click_with_variant_statistics_df.groupby('has_trd_amt_90d')['uid'].nunique())
 
 
 print(user_click_with_variant_statistics_df.columns)
@@ -343,6 +434,12 @@ user_click_with_variant_statistics_df['平均点击位置'] = pd.to_numeric(
     errors='coerce'
 )  # 保留NaN，后续过滤时使用
 
+# 创建用户维度的画像映射表（用于后续JOIN）
+user_profile_mapping = (
+    user_click_with_variant_statistics_df[['uid', 'region', 'has_trd_amt_90d']]
+    .drop_duplicates(subset=['uid'])
+)
+
 # 聚合1: SKU曝光次数
 user_sku_view_serial = (
     user_click_with_variant_statistics_df
@@ -350,6 +447,8 @@ user_sku_view_serial = (
     .agg({"SKU曝光次数": "sum"})
     .reset_index()
 )
+# 关联用户画像
+user_sku_view_serial = user_sku_view_serial.merge(user_profile_mapping, on='uid', how='left')
 
 user_sku_view_serial.head(5)
 
@@ -363,6 +462,8 @@ user_avg_position_serial = (
     .agg({"平均点击位置": "mean"})
     .reset_index()
 )
+# 关联用户画像
+user_avg_position_serial = user_avg_position_serial.merge(user_profile_mapping, on='uid', how='left')
 
 user_avg_position_serial.head(5)
 
@@ -373,6 +474,8 @@ user_sku_click_serial = (
     .agg({"SKU点击次数": "sum"})
     .reset_index()
 )
+# 关联用户画像
+user_sku_click_serial = user_sku_click_serial.merge(user_profile_mapping, on='uid', how='left')
 
 user_sku_click_serial.head(5)
 
@@ -398,6 +501,9 @@ user_sku_ctr_serial['CTR'] = user_sku_ctr_serial['SKU点击次数'] / user_sku_c
 
 # 处理异常CTR值（理论上CTR应该在0-1之间，超过1的是数据异常）
 user_sku_ctr_serial['CTR'] = user_sku_ctr_serial['CTR'].clip(upper=1.0)
+
+# 关联用户画像
+user_sku_ctr_serial = user_sku_ctr_serial.merge(user_profile_mapping, on='uid', how='left')
 
 user_sku_ctr_serial.head(5)
 
@@ -845,6 +951,165 @@ print(ab_results_summary)
 
 
 # ============================================================================
+# 📊 分组AB实验分析 - 按区域和90天交易属性
+# ============================================================================
+
+def run_segmented_ab_analysis(
+    metrics_config: List[Dict],
+    segment_col: str,
+    segment_name: str,
+    control_variant: str = 'V2',
+    alpha: float = 0.05
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    对指定分组进行AB实验分析
+
+    Args:
+        metrics_config: 指标配置列表
+        segment_col: 分组列名
+        segment_name: 分组名称（用于显示）
+        control_variant: 对照组名称
+        alpha: 显著性水平
+
+    Returns:
+        (汇总描述性统计DataFrame, 汇总AB测试结果DataFrame)
+    """
+    all_desc_stats = []
+    all_ab_results = []
+
+    for config in metrics_config:
+        df = config['df']
+        metric_col = config['metric_col']
+        variant_col = config.get('variant_col', 'variant_list')
+
+        # 获取所有分组值
+        segments = df[segment_col].unique()
+
+        for segment in sorted(segments):
+            segment_df = df[df[segment_col] == segment]
+
+            if len(segment_df) < 10:  # 样本量太少，跳过
+                continue
+
+            desc_stats, ab_results = analyze_metric_by_variant(
+                segment_df, metric_col, variant_col, control_variant, alpha
+            )
+
+            # 添加分组信息
+            desc_stats['分组维度'] = segment_name
+            desc_stats['分组值'] = segment
+            ab_results['分组维度'] = segment_name
+            ab_results['分组值'] = segment
+
+            all_desc_stats.append(desc_stats)
+            all_ab_results.append(ab_results)
+
+    if not all_desc_stats:
+        return pd.DataFrame(), pd.DataFrame()
+
+    combined_desc_stats = pd.concat(all_desc_stats, ignore_index=True)
+    combined_ab_results = pd.concat(all_ab_results, ignore_index=True)
+
+    return combined_desc_stats, combined_ab_results
+
+
+def print_segmented_ab_report(
+    ab_results_df: pd.DataFrame,
+    segment_name: str,
+    title: str = "分组AB实验分析报告"
+):
+    """
+    打印分组AB实验分析报告
+
+    Args:
+        ab_results_df: AB测试结果DataFrame
+        segment_name: 分组名称
+        title: 报告标题
+    """
+    print("\n" + "=" * 100)
+    print(f"  {title}")
+    print("=" * 100)
+
+    if ab_results_df.empty:
+        print("无数据")
+        return
+
+    # 按分组值和指标分组打印
+    for segment_val in sorted(ab_results_df['分组值'].unique()):
+        print(f"\n{'─' * 100}")
+        print(f"【{segment_name}: {segment_val}】")
+        print(f"{'─' * 100}")
+
+        segment_data = ab_results_df[ab_results_df['分组值'] == segment_val]
+
+        for metric in segment_data['指标'].unique():
+            metric_data = segment_data[segment_data['指标'] == metric]
+            print(f"\n  📊 {metric}:")
+
+            for _, row in metric_data.iterrows():
+                sig_text = "✅" if row['是否显著(α=0.05)'] == '是' else "❌"
+                lift_val = float(row['提升度(%)'].replace('%', ''))
+                direction = "↑" if lift_val > 0 else "↓"
+                print(f"     {row['实验组']} vs V2: {row['提升度(%)']} {direction} | {sig_text} | p={row['t检验p值']:.4f}")
+
+    print("\n" + "=" * 100)
+
+
+# ============================================================================
+# 1. 按区域分组的AB实验分析
+# ============================================================================
+print("\n\n")
+print("=" * 100)
+print("  🌍 按区域分组的AB实验分析")
+print("=" * 100)
+
+region_desc_stats, region_ab_results = run_segmented_ab_analysis(
+    metrics_to_analyze,
+    segment_col='region',
+    segment_name='区域',
+    control_variant='V2',
+    alpha=0.05
+)
+
+print_segmented_ab_report(region_ab_results, '区域',
+                         title=f"分类页LTR重排序AB实验 - 区域分组分析 ({START_DATE} ~ 今)")
+
+# 输出区域分组的汇总表格
+if not region_ab_results.empty:
+    print("\n📋 区域分组AB测试汇总表:")
+    region_summary = region_ab_results[['分组值', '指标', '实验组', '实验组样本数', '对照组样本数',
+                                         '提升度(%)', 't检验p值', '是否显著(α=0.05)']].copy()
+    print(region_summary.to_string(index=False))
+
+
+# ============================================================================
+# 2. 按90天交易属性分组的AB实验分析
+# ============================================================================
+print("\n\n")
+print("=" * 100)
+print("  💰 按90天交易属性分组的AB实验分析")
+print("=" * 100)
+
+trd_desc_stats, trd_ab_results = run_segmented_ab_analysis(
+    metrics_to_analyze,
+    segment_col='has_trd_amt_90d',
+    segment_name='90天交易属性',
+    control_variant='V2',
+    alpha=0.05
+)
+
+print_segmented_ab_report(trd_ab_results, '90天交易属性',
+                         title=f"分类页LTR重排序AB实验 - 90天交易属性分组分析 ({START_DATE} ~ 今)")
+
+# 输出90天交易属性分组的汇总表格
+if not trd_ab_results.empty:
+    print("\n📋 90天交易属性分组AB测试汇总表:")
+    trd_summary = trd_ab_results[['分组值', '指标', '实验组', '实验组样本数', '对照组样本数',
+                                   '提升度(%)', 't检验p值', '是否显著(α=0.05)']].copy()
+    print(trd_summary.to_string(index=False))
+
+
+# ============================================================================
 # 📊 AB测试结果可视化模块 - 详细指标对比
 # ============================================================================
 
@@ -991,6 +1256,147 @@ create_ab_test_visualization(desc_stats_summary, ab_results_summary,
                             title_prefix=f"分类页LTR重排序 ({START_DATE})")
 
 
+# ============================================================================
+# 📊 分组AB实验结果可视化
+# ============================================================================
+
+def create_segmented_ab_visualization(
+    ab_results_df: pd.DataFrame,
+    segment_name: str,
+    title_prefix: str = "分类页LTR重排序",
+    user_count_df: pd.DataFrame = None
+):
+    """
+    创建分组AB测试结果的可视化图表
+    展示不同分组下各实验变体相对于对照组的提升度
+
+    Args:
+        ab_results_df: AB测试结果DataFrame
+        segment_name: 分组名称
+        title_prefix: 图表标题前缀
+        user_count_df: 用户数量统计DataFrame，包含分组值和用户数
+    """
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import numpy as np
+    import sys
+
+    if ab_results_df.empty:
+        print(f"⚠️ {segment_name}分组无数据，跳过可视化")
+        return
+
+    # 设置seaborn主题
+    sns.set_theme(style="whitegrid", palette="husl")
+
+    # 设置中文字体
+    if sys.platform == 'darwin':
+        plt.rcParams['font.sans-serif'] = ['Heiti TC', 'PingFang HK', 'STHeiti', 'Songti SC', 'Kaiti SC', 'Arial Unicode MS']
+    else:
+        plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans', 'Arial Unicode MS', 'Arial']
+    plt.rcParams['axes.unicode_minus'] = False
+    plt.rcParams['font.size'] = 10
+
+    # 获取指标列表和分组值列表
+    metrics = ab_results_df['指标'].unique()
+    segments = sorted(ab_results_df['分组值'].unique())
+    variants = sorted(ab_results_df['实验组'].unique())
+
+    # 构建分组标签（包含用户数）
+    segment_labels = []
+    for seg in segments:
+        if user_count_df is not None and seg in user_count_df.index:
+            user_count = user_count_df.loc[seg]
+            segment_labels.append(f"{seg}\n(n={user_count:,})")
+        else:
+            segment_labels.append(seg)
+
+    # 创建图表
+    n_metrics = len(metrics)
+    fig, axes = plt.subplots(n_metrics, 1, figsize=(14, 4 * n_metrics))
+    if n_metrics == 1:
+        axes = [axes]
+
+    fig.suptitle(f'{title_prefix} - {segment_name}分组AB实验提升度对比',
+                 fontsize=16, fontweight='bold', y=0.995)
+
+    # 颜色方案
+    colors = {'V1': '#3498db', 'V3': '#27ae60', 'V4': '#9b59b6'}
+    segment_positions = np.arange(len(segments))
+    bar_width = 0.25
+
+    for idx, metric in enumerate(sorted(metrics)):
+        ax = axes[idx]
+        metric_data = ab_results_df[ab_results_df['指标'] == metric]
+
+        for i, variant in enumerate(variants):
+            variant_data = metric_data[metric_data['实验组'] == variant]
+
+            lifts = []
+            is_sigs = []
+            for segment in segments:
+                seg_data = variant_data[variant_data['分组值'] == segment]
+                if not seg_data.empty:
+                    lift_str = seg_data['提升度(%)'].values[0]
+                    lifts.append(float(lift_str.replace('%', '')))
+                    is_sigs.append(seg_data['是否显著(α=0.05)'].values[0] == '是')
+                else:
+                    lifts.append(0)
+                    is_sigs.append(False)
+
+            # 绘制柱状图
+            positions = segment_positions + (i - 1) * bar_width
+            bars = ax.bar(positions, lifts, bar_width, label=variant,
+                         color=colors.get(variant, '#95a5a6'), alpha=0.85,
+                         edgecolor='black', linewidth=1)
+
+            # 添加数值标签和显著性标记
+            for bar, lift, is_sig in zip(bars, lifts, is_sigs):
+                height = bar.get_height()
+                sig_mark = '*' if is_sig else ''
+                va = 'bottom' if height >= 0 else 'top'
+                offset = 0.5 if height >= 0 else -0.5
+                ax.text(bar.get_x() + bar.get_width()/2., height + offset,
+                       f'{lift:+.1f}%{sig_mark}', ha='center', va=va,
+                       fontsize=8, fontweight='bold')
+
+        ax.set_ylabel('提升度 (%)', fontsize=11)
+        ax.set_title(f'{metric}', fontsize=12, fontweight='bold')
+        ax.set_xticks(segment_positions)
+        ax.set_xticklabels(segment_labels, fontsize=10)  # 使用包含用户数的标签
+        ax.axhline(y=0, color='#e74c3c', linestyle='-', linewidth=1.5)
+        ax.legend(loc='upper right', fontsize=9)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+    plt.tight_layout()
+    filename = f'./data/ab_test_{segment_name}_comparison.png'
+    plt.savefig(filename, dpi=150, bbox_inches='tight', facecolor='white')
+    print(f"\n✅ {segment_name}分组对比图表已保存到: {filename}")
+    plt.show()
+
+
+# 执行分组可视化
+# 计算区域分组的用户数统计
+region_user_counts = user_click_with_variant_statistics_df.groupby('region')['uid'].nunique()
+print("\n📊 区域分组用户数统计:")
+print(region_user_counts)
+
+# 计算90天交易属性分组的用户数统计
+trd_user_counts = user_click_with_variant_statistics_df.groupby('has_trd_amt_90d')['uid'].nunique()
+print("\n📊 90天交易属性分组用户数统计:")
+print(trd_user_counts)
+
+if not region_ab_results.empty:
+    create_segmented_ab_visualization(region_ab_results, '区域',
+                                      title_prefix=f"分类页LTR重排序 ({START_DATE})",
+                                      user_count_df=region_user_counts)
+
+if not trd_ab_results.empty:
+    create_segmented_ab_visualization(trd_ab_results, '90天交易属性',
+                                      title_prefix=f"分类页LTR重排序 ({START_DATE})",
+                                      user_count_df=trd_user_counts)
+
+
 # 将AB测试结果写入本地CSV文件
 # 获取数据的开始和结束日期
 data_start_date = all_user_variant_df['ds'].min() if not all_user_variant_df.empty else START_DATE.replace('-', '')
@@ -1002,6 +1408,17 @@ csv_filename = f"./data/ab_test_results_{data_start_date}_{data_end_date}.csv"
 # 写入CSV文件
 ab_results_summary.to_csv(csv_filename, index=False, encoding='utf-8-sig')
 print(f"\n✅ AB测试结果已保存到: {csv_filename}")
+
+# 保存分组分析结果到CSV
+if not region_ab_results.empty:
+    region_csv_filename = f"./data/ab_test_results_by_region_{data_start_date}_{data_end_date}.csv"
+    region_ab_results.to_csv(region_csv_filename, index=False, encoding='utf-8-sig')
+    print(f"✅ 区域分组AB测试结果已保存到: {region_csv_filename}")
+
+if not trd_ab_results.empty:
+    trd_csv_filename = f"./data/ab_test_results_by_trd_amt_{data_start_date}_{data_end_date}.csv"
+    trd_ab_results.to_csv(trd_csv_filename, index=False, encoding='utf-8-sig')
+    print(f"✅ 90天交易属性分组AB测试结果已保存到: {trd_csv_filename}")
 
 if not args.upload_odps:
     print("未指定上传到ODPS，程序结束")
