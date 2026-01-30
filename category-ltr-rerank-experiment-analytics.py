@@ -71,6 +71,178 @@ matplotlib.rcParams['font.family'] = 'sans-serif'
 
 import matplotlib.pyplot as plt
 
+# ============================================================================
+# 类目ID到名称的映射表
+# ============================================================================
+# 一级类目 (cate_level1_id -> name)
+CATE1_NAME_MAP = {
+    "103": "烘焙辅料",
+    "105": "水吧辅料",
+    "107": "鲜果",
+    "115": "乳制品",
+    "122": "西餐辅料",
+    "146": "忘忧酒馆",
+    "160": "咖啡",
+    "175": "糖丨糖浆",
+    "590": "冷冻蛋糕",
+    "591": "包材",
+}
+
+# 二级类目 (cate_level2_id -> name)
+CATE2_NAME_MAP = {
+    "104": "饼干",
+    "106": "果茶酱",
+    "108": "果泥丨果茸",
+    "109": "可可豆制品",
+    "110": "冷冻水果",
+    "111": "奶盖",
+    "112": "水果干",
+    "113": "饮料冲调粉",
+    "114": "饮品配料",
+    "116": "小料预拌粉",
+    "118": "果汁原料",
+    "120": "冰淇淋",
+    "121": "罐头",
+    "123": "黄油",
+    "124": "调味粉",
+    "125": "奶酪丨芝士",
+    "126": "肉制品",
+    "127": "炼乳",
+    "128": "沙拉酱",
+    "129": "涂抹式果酱",
+    "130": "西餐酱",
+    "131": "奶粉",
+    "132": "礼盒",
+    "133": "奶盖",
+    "134": "莓果",
+    "135": "应季水果",
+    "136": "酸奶油",
+    "137": "芒果",
+    "138": "稀奶油",
+    "139": "意大利面",
+    "140": "牛奶",
+    "141": "植物油",
+    "142": "牛油果",
+    "143": "装饰蔬菜",
+    "144": "瓜类",
+    "145": "番茄制品",
+    "147": "火龙果",
+    "148": "植脂制品",
+    "149": "调配酒",
+    "151": "柑橘橙",
+    "152": "奶酪丨芝士",
+    "154": "柠檬丨金桔",
+    "156": "葡萄酒",
+    "157": "柚子丨百香果",
+    "158": "洋酒",
+    "161": "苹果丨梨",
+    "162": "咖啡豆",
+    "163": "咖啡饮料",
+    "164": "椰子丨香蕉",
+    "165": "速溶咖啡粉",
+    "166": "蛋类",
+    "167": "鲜牛奶",
+    "168": "葡提丨番茄|枣",
+    "169": "咖啡调制乳",
+    "170": "植物蛋白奶",
+    "171": "谷物加工品",
+    "174": "奇异果丨猕猴桃",
+    "176": "烘焙用油",
+    "177": "砂糖",
+    "178": "水果制品",
+    "179": "糖粉",
+    "180": "可可豆制品",
+    "181": "糖果｜果冻",
+    "182": "冷冻蛋糕",
+    "183": "糖浆",
+    "184": "冷加工糕点",
+    "185": "凝固剂",
+    "186": "膨松剂",
+    "188": "热加工糕点",
+    "189": "包装饮用水",
+    "191": "食品馅料",
+    "192": "食用色素",
+    "193": "茶包｜茶叶",
+    "194": "食用调味料",
+    "197": "预拌粉",
+    "198": "增稠剂",
+    "199": "果蔬汁",
+    "200": "含乳饮料",
+    "201": "碳酸饮料",
+    "202": "植物蛋白饮料",
+    "204": "糕点",
+    "206": "坚果及其制品",
+    "207": "装饰用碎丨片",
+    "208": "装饰品",
+    "209": "淀粉丨米粉",
+    "210": "面粉丨小麦粉",
+    "215": "凤梨丨菠萝",
+    "216": "常温奶",
+    "219": "薯类",
+    "221": "蔬菜",
+    "229": "植物蛋白奶",
+    "230": "砂糖",
+    "231": "冷冻果肉",
+    "232": "肉制品",
+    "233": "黄油",
+    "234": "稀奶油",
+    "235": "烘焙用品餐具",
+    "236": "烘焙包材",
+    "237": "烘焙工具",
+    "239": "糖浆",
+    "240": "稀奶油丨奶盖",
+    "241": "餐具",
+    "242": "水吧包材",
+    "243": "水吧工具",
+    "244": "黄油",
+    "245": "冷冻蛋糕",
+    "246": "冰淇淋",
+    "247": "汽水｜饮料",
+    "251": "咖啡",
+    "253": "冷冻蛋糕",
+    "254": "冰淇淋",
+    "255": "咖啡餐具",
+    "256": "咖啡包材",
+    "257": "咖啡工具",
+    "258": "面包袋",
+    "259": "工具",
+    "260": "调味粉",
+    "261": "桃丨李丨杏",
+    "264": "果蔬及其制品",
+    "265": "非氢化基底奶",
+    "548": "冷冻面团",
+    "594": "荔枝|山竹",
+    "598": "品牌推荐",
+    "599": "爆品推荐",
+    "600": "新品推荐",
+    "601": "慕斯系列",
+    "602": "独立包装甜品",
+    "603": "瑞士卷",
+    "604": "千层系列",
+    "605": "芝士系列",
+    "606": "法甜系列",
+    "607": "纸巾",
+    "608": "饮品耗材",
+    "609": "餐盒｜餐具",
+    "610": "保温袋",
+    "615": "清洁用品",
+    "616": "芒果草莓爆款",
+    "617": "酸奶",
+    "619": "柑橘橙爆款",
+}
+
+
+def get_cate1_name(cate_id) -> str:
+    """获取一级类目名称，如果找不到则返回原ID"""
+    cate_id_str = str(cate_id) if cate_id is not None else ""
+    return CATE1_NAME_MAP.get(cate_id_str, f"未知({cate_id_str})" if cate_id_str else "未知")
+
+
+def get_cate2_name(cate_id) -> str:
+    """获取二级类目名称，如果找不到则返回原ID"""
+    cate_id_str = str(cate_id) if cate_id is not None else ""
+    return CATE2_NAME_MAP.get(cate_id_str, f"未知({cate_id_str})" if cate_id_str else "未知")
+
 
 def get_user_variant_of_date_from_sls(
     day: datetime, check_if_local_exist: bool = True
@@ -593,6 +765,25 @@ user_ctr_by_cate2 = (
 )
 user_ctr_by_cate2 = user_ctr_by_cate2[user_ctr_by_cate2['SKU曝光次数'] > 0].copy()
 user_ctr_by_cate2['CTR'] = user_ctr_by_cate2['SKU点击次数'] / user_ctr_by_cate2['SKU曝光次数']
+
+# ============================================================================
+# 将类目ID转换为类目名称（用于更友好的显示）
+# ============================================================================
+# 一级类目：添加名称列并替换ID列
+for df in [user_sku_view_by_cate1, user_sku_click_by_cate1, user_avg_position_by_cate1, user_ctr_by_cate1]:
+    df['cate_level1_name'] = df['cate_level1_id'].apply(get_cate1_name)
+    df['cate_level1_id'] = df['cate_level1_name']
+    df.drop(columns=['cate_level1_name'], inplace=True)
+
+# 二级类目：添加名称列并替换ID列
+for df in [user_sku_view_by_cate2, user_sku_click_by_cate2, user_avg_position_by_cate2, user_ctr_by_cate2]:
+    df['cate_level2_name'] = df['cate_level2_id'].apply(get_cate2_name)
+    df['cate_level2_id'] = df['cate_level2_name']
+    df.drop(columns=['cate_level2_name'], inplace=True)
+
+# 同时更新原始数据中的类目名称（用于用户数统计）
+user_click_with_variant_statistics_df['cate_level1_name'] = user_click_with_variant_statistics_df['cate_level1_id'].apply(get_cate1_name)
+user_click_with_variant_statistics_df['cate_level2_name'] = user_click_with_variant_statistics_df['cate_level2_id'].apply(get_cate2_name)
 
 print(f"\n📊 一级类目数量: {user_click_with_variant_statistics_df['cate_level1_id'].nunique()}")
 print(f"📊 二级类目数量: {user_click_with_variant_statistics_df['cate_level2_id'].nunique()}")
@@ -1583,13 +1774,13 @@ if not trd_ab_results.empty:
                                       title_prefix=f"分类页LTR重排序 ({START_DATE})",
                                       user_count_df=trd_user_counts)
 
-# 计算一级类目分组的用户数统计
-cate1_user_counts = user_click_with_variant_statistics_df.groupby('cate_level1_id')['uid'].nunique()
+# 计算一级类目分组的用户数统计（使用类目名称）
+cate1_user_counts = user_click_with_variant_statistics_df.groupby('cate_level1_name')['uid'].nunique()
 print("\n📊 一级类目分组用户数统计:")
 print(cate1_user_counts.sort_values(ascending=False).head(20))
 
-# 计算二级类目分组的用户数统计
-cate2_user_counts = user_click_with_variant_statistics_df.groupby('cate_level2_id')['uid'].nunique()
+# 计算二级类目分组的用户数统计（使用类目名称）
+cate2_user_counts = user_click_with_variant_statistics_df.groupby('cate_level2_name')['uid'].nunique()
 print("\n📊 二级类目分组用户数统计 (Top 20):")
 print(cate2_user_counts.sort_values(ascending=False).head(20))
 
