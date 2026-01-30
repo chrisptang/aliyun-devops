@@ -15,7 +15,11 @@
     python update-delivery-fee-spring-festival-2026.py --env admin --fee 15
 
     # 从备份文件恢复运费规则
-    python update-delivery-fee-spring-festival-2026.py --env admin --restore --backup-date 20260130
+    python update-delivery-fee-spring-festival-2026.py --env admin --restore 20260130
+
+    # 对单个区域操作
+    python update-delivery-fee-spring-festival-2026.py --env admin --area 1001
+    python update-delivery-fee-spring-festival-2026.py --env admin --area 1001 --restore 20260130
 """
 
 import argparse
@@ -25,6 +29,28 @@ import os
 from datetime import datetime
 
 import requests
+
+# ============================================================================
+# API 配置 - 根据环境动态生成域名
+# ============================================================================
+def get_base_url(env: str) -> str:
+    """获取API基础URL"""
+    return f"https://{env}.summerfarm.net"
+
+# API 路径配置
+API_PATHS = {
+    "login": "/authentication/auth/username/login",
+    "large_area_list": "/large-area/v2/{page}/{size}",
+    "delivery_fee_detail": "/marketing-center/delivery-fee-rule/query/detail",
+    "delivery_fee_save": "/marketing-center/delivery-fee-rule/upsert/save",
+}
+
+
+def get_api_url(env: str, api_name: str, **kwargs) -> str:
+    """获取完整的API URL"""
+    base_url = get_base_url(env)
+    path = API_PATHS[api_name].format(**kwargs)
+    return f"{base_url}{path}"
 
 
 def parse_args():
@@ -38,14 +64,10 @@ def parse_args():
     )
     parser.add_argument(
         "--restore",
-        action="store_true",
-        help="从备份文件恢复运费规则 (默认是增加运费)",
-    )
-    parser.add_argument(
-        "--backup-date",
         type=str,
         default=None,
-        help="备份文件日期，格式如 20260130 (restore操作必须指定)",
+        metavar="DATE",
+        help="从备份文件恢复运费规则，需指定备份日期如 20260130 (默认是增加运费)",
     )
     parser.add_argument(
         "--dry-run",
@@ -56,7 +78,7 @@ def parse_args():
         "--fee",
         type=float,
         default=10.0,
-        help="0元运费规则的新价格 (默认: 10元)",
+        help="最低运费金额，低于此值的运费将被改为此值 (默认: 10元)",
     )
     parser.add_argument(
         "--area",
@@ -69,7 +91,7 @@ def parse_args():
 
 def get_token(env: str) -> tuple[str, dict]:
     """获取登录token"""
-    login_url = f"https://{env}.summerfarm.net/authentication/auth/username/login"
+    login_url = get_api_url(env, "login")
     login_data = {
         "username": "peng.tang@summerfarm.net",
         "password": os.getenv(
@@ -100,7 +122,7 @@ def get_all_active_area_nos(env: str, token_str: str) -> list[int]:
     total_pages = None
 
     while total_pages is None or page <= total_pages:
-        url = f"https://{env}.summerfarm.net/large-area/v2/{page}/100"
+        url = get_api_url(env, "large_area_list", page=page, size=100)
         headers = {
             "accept": "application/json, text/plain, */*",
             "token": token_str,
@@ -156,7 +178,7 @@ def get_area_delivery_fee_detail(
     rules = None
     try:
         response = requests.post(
-            f"https://{env}.summerfarm.net/marketing-center/delivery-fee-rule/query/detail",
+            get_api_url(env, "delivery_fee_detail"),
             headers=headers,
             json=data,
         )
@@ -179,9 +201,9 @@ def get_area_delivery_fee_detail(
         return {}
 
 
-def transform_rules_for_increase(rules_of_area: dict, increase_amount: float = 10.0) -> tuple[dict, bool]:
+def transform_rules_for_increase(rules_of_area: dict, min_fee: float = 10.0) -> tuple[dict, bool]:
     """
-    转换规则用于increase操作：将0元运费增加指定金额
+    转换规则用于increase操作：将低于min_fee的运费改为min_fee
     返回: (transformed_rules, modified)
     """
     modified = False
@@ -194,27 +216,31 @@ def transform_rules_for_increase(rules_of_area: dict, increase_amount: float = 1
     for rule in rules_of_area.get("ruleVOList", []):
         rule_input = {
             "ageing": rule.get("ageing"),
-            "startDeliveryAmount": rule.get("startDeliveryAmount"),
+            "startDeliveryAmount": int(rule.get("startDeliveryAmount", 0)),
             "categoryRuleInputList": [],
         }
 
         for category_rule in rule.get("categoryRuleVOList", []):
-            delivery_fee = category_rule.get("deliveryFee", 0)
-            express_fee = category_rule.get("expressFee", 0)
+            delivery_fee = float(category_rule.get("deliveryFee", 0))
+            express_fee = float(category_rule.get("expressFee", 0))
 
-            # 检查是否需要修改（0元运费加10元）
+            # 检查是否需要修改（低于min_fee的运费改为min_fee）
             new_delivery_fee = delivery_fee
             new_express_fee = express_fee
 
-            if delivery_fee <= 0:
-                new_delivery_fee = increase_amount
+            if delivery_fee < min_fee:
+                new_delivery_fee = min_fee
                 modified = True
-            if express_fee <= 0:
-                new_express_fee = increase_amount
+            if express_fee < min_fee:
+                new_express_fee = min_fee
                 modified = True
 
+            # stepValue需要转为整数（API期望整数格式）
+            step_value_raw = category_rule.get("stepValue", 0)
+            step_value = int(float(step_value_raw)) if step_value_raw else 0
+
             category_rule_input = {
-                "stepValue": float(category_rule.get("stepValue")),
+                "stepValue": step_value,
                 "deliveryFee": new_delivery_fee,
                 "expressFee": new_express_fee,
                 "feeMode": category_rule.get("feeMode"),
@@ -240,13 +266,17 @@ def transform_rules_for_restore(rules_of_area: dict) -> dict:
     for rule in rules_of_area.get("ruleVOList", []):
         rule_input = {
             "ageing": rule.get("ageing"),
-            "startDeliveryAmount": rule.get("startDeliveryAmount"),
+            "startDeliveryAmount": int(rule.get("startDeliveryAmount", 0)),
             "categoryRuleInputList": [],
         }
 
         for category_rule in rule.get("categoryRuleVOList", []):
+            # stepValue需要转为整数（API期望整数格式）
+            step_value_raw = category_rule.get("stepValue", 0)
+            step_value = int(float(step_value_raw)) if step_value_raw else 0
+
             category_rule_input = {
-                "stepValue": float(category_rule.get("stepValue")),
+                "stepValue": step_value,
                 "deliveryFee": float(category_rule.get("deliveryFee", 0)),
                 "expressFee": float(category_rule.get("expressFee", 0)),
                 "feeMode": category_rule.get("feeMode"),
@@ -264,12 +294,13 @@ def update_delivery_fee_rules(env: str, token_str: str, objects_to_update: list,
     if dry_run:
         print("\n[DRY-RUN 模式] 以下规则将被更新（实际未执行）:")
         for obj in objects_to_update:
-            print(f"  区域 {obj['businessId']}: {len(obj['ruleInputList'])} 条规则")
+            print(f"  区域 {obj['businessId']}: {len(obj['ruleInputList'])} 条时效规则")
+            print(f"    请求体: {json.dumps(obj, ensure_ascii=False)}")
         return
 
     if len(objects_to_update) > 0:
         for obj in objects_to_update:
-            url = f"https://{env}.summerfarm.net/marketing-center/delivery-fee-rule/upsert/save"
+            url = get_api_url(env, "delivery_fee_save")
             headers = {
                 "accept": "application/json, text/plain, */*",
                 "content-type": "application/json;charset=UTF-8",
@@ -278,26 +309,23 @@ def update_delivery_fee_rules(env: str, token_str: str, objects_to_update: list,
                 "xm-rqid": "chunjie_update_delivery_fee_10",
             }
 
+            print(f"\n更新区域 {obj['businessId']}...")
+            print(f"  请求体: {json.dumps(obj, ensure_ascii=False)}")
             response = requests.post(url, headers=headers, json=obj)
-            print(f"Response for obj: {obj}\n{response.status_code}, {response.text}")
+            print(f"  响应: {response.status_code}, {response.text}")
 
 
 def main():
     args = parse_args()
-
-    # restore操作必须指定backup-date
-    if args.restore and not args.backup_date:
-        print("错误: --restore 操作必须指定 --backup-date 参数")
-        return
 
     operation = "restore" if args.restore else "increase"
     print(f"环境: {args.env}")
     print(f"操作: {operation}")
     print(f"Dry-run: {args.dry_run}")
     if not args.restore:
-        print(f"运费金额: {args.fee}元")
-    if args.backup_date:
-        print(f"备份日期: {args.backup_date}")
+        print(f"最低运费: {args.fee}元")
+    else:
+        print(f"备份日期: {args.restore}")
     if args.area:
         print(f"指定区域: {args.area}")
 
@@ -328,7 +356,7 @@ def main():
             backup_rules[area_no] = copy.deepcopy(rules_of_area)
 
             # 转换并检查是否需要修改
-            transformed_rules, modified = transform_rules_for_increase(rules_of_area, increase_amount=args.fee)
+            transformed_rules, modified = transform_rules_for_increase(rules_of_area, min_fee=args.fee)
 
             if modified:
                 objects_to_update.append(transformed_rules)
@@ -349,9 +377,9 @@ def main():
     else:
         # restore操作：从本地备份文件恢复
         if args.area:
-            backup_file = f"./delivery_fee_rules_backup_{args.backup_date}-{args.env}-area{args.area}.json"
+            backup_file = f"./delivery_fee_rules_backup_{args.restore}-{args.env}-area{args.area}.json"
         else:
-            backup_file = f"./delivery_fee_rules_backup_{args.backup_date}-{args.env}.json"
+            backup_file = f"./delivery_fee_rules_backup_{args.restore}-{args.env}.json"
         if not os.path.exists(backup_file):
             print(f"错误: 备份文件不存在: {backup_file}")
             return
