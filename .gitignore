@@ -12,3 +12,5 @@ app.log
 .env
 *.png
 *.json
+
+.claude/memory/
