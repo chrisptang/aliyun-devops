@@ -14,3 +14,4 @@ app.log
 *.json
 
 .claude/memory/
+crm_bd_month_gmv_all_inserts.sql
